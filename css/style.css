@@ -334,6 +334,7 @@ body.ada-bar .wa-float { bottom: 100px; }
   .visi-card:hover, .misi-card:hover { transform: translateY(-4px) scale(1.015); }
   .pilar:hover { transform: translateY(-4px) scale(1.03); }
   .tbaris .tcard:hover { transform: translateY(-3px) scale(1.03); }
+  .tgrid > .tcard:hover { transform: translateY(-4px) scale(1.03); }
   .nav button:hover { transform: translateY(-1px) scale(1.06); }
 }
 .tbaris-jalur { display: flex; width: max-content; animation: testiKiri var(--durasi, 72s) linear infinite; }
@@ -719,7 +720,7 @@ body.ada-bar .wa-float { bottom: 100px; }
 /* ---------- Gerakan minimal ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
-  .visi-card:hover, .misi-card:hover, .pilar:hover, .tbaris .tcard:hover, .nav button:hover { transform: none; }
+  .visi-card:hover, .misi-card:hover, .pilar:hover, .tbaris .tcard:hover, .tgrid > .tcard:hover, .nav button:hover { transform: none; }
   /* Testimoni Beranda tidak berjalan: digeser manual, tanpa salinan kartu */
   .tbaris { overflow-x: auto; }
   .tbaris-jalur { animation: none !important; }
