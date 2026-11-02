@@ -328,6 +328,7 @@
     nota: null,
     pdf: null,
     testi: { items: [], total: 0, dimuat: false, memuat: false },
+    testiSemua: { items: null, teks: '', cacheDibaca: false, dimuat: false, memuat: false },
     tFoto: null,
     tSentuh: {},
     bio: { sentuh: {} },
@@ -378,6 +379,7 @@
       S.testi.items = (S.data.testimoni.items || []).slice();
       S.testi.total = S.data.testimoni.total || 0;
     }
+    S.testiSemua.dimuat = false;
     S.sudahRender = {};
   }
 
@@ -508,7 +510,10 @@
   }
 
   function renderRute(rute) {
-    if (rute === 'beranda') { if (!S.sudahRender.beranda) renderBeranda(); }
+    if (rute === 'beranda') {
+      if (!S.sudahRender.beranda) renderBeranda();
+      if (!S.testiSemua.dimuat) muatSemuaTesti();
+    }
     else if (rute === 'produk') renderKatalog();
     else if (rute === 'keranjang') renderKeranjang();
     else if (rute === 'nota') renderNotaPelanggan();
@@ -621,10 +626,77 @@
     const pilar = htmlPilar(p.pilar);
     byId('berandaPilar').innerHTML = pilar;
     byId('secPilarBeranda').hidden = !pilar;
-    const t = (S.data.testimoni.items || []).slice(0, 6);
-    byId('berandaTesti').innerHTML = t.length ? t.map(function (x) { return htmlTesti(x, false); }).join('')
-      : htmlKosong('bi-chat-square-quote', 'Belum ada testimoni', 'Jadilah yang pertama membagikan pengalaman Anda.', '<button type="button" class="btn btn-outline btn-sm" data-go="testimonial">Tulis testimoni</button>');
+    renderTestiBeranda();
     S.sudahRender.beranda = true;
+  }
+
+  // Testimoni Beranda: dua baris berjalan berlawanan arah, berisi SEMUA testimoni yang tampil.
+  const KUNCI_TESTI_SEMUA = 'mmx_testi_semua_v1';
+  const MAKS_TESTI_BERANDA = 120;
+  const DETIK_PER_KARTU = 12;
+
+  function htmlBarisTesti(daftar, arah) {
+    // Satu grup minimal 6 kartu agar jalur selalu lebih lebar dari layar; grup kedua salinan untuk putaran tanpa sambungan.
+    const ulang = Math.max(1, Math.ceil(6 / daftar.length));
+    const asli = daftar.map(function (x) { return htmlTesti(x, false); }).join('');
+    const salin = daftar.map(function (x) { return htmlTesti(x, false).replace('<article', '<article aria-hidden="true"'); }).join('');
+    let grup1 = asli;
+    let grup2 = '';
+    for (let k = 0; k < ulang; k++) { if (k) grup1 += salin; grup2 += salin; }
+    return '<div class="tbaris" data-arah="' + arah + '"><div class="tbaris-jalur" style="--durasi:' + (daftar.length * ulang * DETIK_PER_KARTU) + 's">' +
+      '<div class="tbaris-grup">' + grup1 + '</div><div class="tbaris-grup" aria-hidden="true">' + grup2 + '</div></div></div>';
+  }
+
+  function renderTestiBeranda() {
+    const ts = S.testiSemua;
+    if (!ts.cacheDibaca) {
+      ts.cacheDibaca = true;
+      try {
+        const teks = localStorage.getItem(KUNCI_TESTI_SEMUA);
+        const d = teks ? JSON.parse(teks) : null;
+        if (Array.isArray(d) && d.length) { ts.items = d; ts.teks = teks; }
+      } catch (e) { /* abaikan */ }
+    }
+    const t = ts.items || S.data.testimoni.items || [];
+    if (!t.length) {
+      byId('berandaTesti').innerHTML = htmlKosong('bi-chat-square-quote', 'Belum ada testimoni', 'Jadilah yang pertama membagikan pengalaman Anda.', '<button type="button" class="btn btn-outline btn-sm" data-go="testimonial">Tulis testimoni</button>');
+      return;
+    }
+    const atas = t.filter(function (x, i) { return i % 2 === 0; });
+    const bawah = t.filter(function (x, i) { return i % 2 === 1; });
+    byId('berandaTesti').innerHTML = htmlBarisTesti(atas, 'kanan') + (bawah.length ? htmlBarisTesti(bawah, 'kiri') : '');
+  }
+
+  /** Ambil semua testimoni tampil (per halaman); Beranda digambar ulang hanya bila isinya berubah. */
+  async function muatSemuaTesti() {
+    const ts = S.testiSemua;
+    if (ts.memuat) return;
+    ts.memuat = true;
+    try {
+      let items = [];
+      let total = 1;
+      while (items.length < Math.min(total, MAKS_TESTI_BERANDA)) {
+        const res = await panggil('getTestimoniPublik', items.length);
+        if (!res.success) return;
+        total = res.data.total || 0;
+        const baru = res.data.items || [];
+        if (!baru.length) break;
+        items = items.concat(baru);
+      }
+      const ada = {};
+      items = items.filter(function (x) { if (ada[x.id]) return false; ada[x.id] = true; return true; });
+      ts.dimuat = true;
+      const teks = JSON.stringify(items);
+      try { localStorage.setItem(KUNCI_TESTI_SEMUA, teks); } catch (e) { /* abaikan */ }
+      if (teks === ts.teks) return;
+      ts.teks = teks;
+      ts.items = items;
+      renderTestiBeranda();
+    } catch (e) {
+      /* Beranda tetap menampilkan testimoni yang sudah ada. */
+    } finally {
+      ts.memuat = false;
+    }
   }
 
   // ============================================================
@@ -1107,6 +1179,7 @@
       S.testi.total += 1;
       S.data.testimoni.items = [kartu].concat(S.data.testimoni.items || []).slice(0, 6);
       S.data.testimoni.total = (S.data.testimoni.total || 0) + 1;
+      if (S.testiSemua.items) S.testiSemua.items = [kartu].concat(S.testiSemua.items);
       S.sudahRender.beranda = false;
       byId('formTesti').reset();
       hapusFotoTesti();
@@ -2239,6 +2312,7 @@
       muatTsa();
       S.publikKotor = true;
       S.testi.dimuat = false;
+      S.testiSemua.dimuat = false;
     } catch (er) {
       if (!er.sesiHabis) tampilAlert('errTsa', pesanDari(er));
     } finally {
@@ -2257,6 +2331,7 @@
       muatTsa();
       S.publikKotor = true;
       S.testi.dimuat = false;
+      S.testiSemua.dimuat = false;
     } catch (e) {
       if (!e.sesiHabis) toast(pesanGagal(e), 'err');
     }
@@ -2274,6 +2349,7 @@
       muatTsa();
       S.publikKotor = true;
       S.testi.dimuat = false;
+      S.testiSemua.dimuat = false;
     } catch (e) {
       if (!e.sesiHabis) toast(pesanGagal(e), 'err');
     }

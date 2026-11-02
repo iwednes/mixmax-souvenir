@@ -314,8 +314,8 @@ body.ada-bar .wa-float { bottom: 100px; }
 .thead { display: flex; gap: 12px; align-items: center; }
 .tava { width: 44px; height: 44px; flex: none; border-radius: 50%; object-fit: cover; background: var(--mid); }
 .tava-inisial { display: inline-flex; align-items: center; justify-content: center; font: 500 15px/1 var(--serif); letter-spacing: 0.02em; color: var(--bg); background: var(--ink); border: 0; }
-.tgrid > .tcard:nth-child(3n+2) .tava-inisial { background: var(--ink-700); }
-.tgrid > .tcard:nth-child(3n) .tava-inisial { background: var(--sec); }
+.tgrid > .tcard:nth-child(3n+2) .tava-inisial, .tbaris-grup > .tcard:nth-child(3n+2) .tava-inisial { background: var(--ink-700); }
+.tgrid > .tcard:nth-child(3n) .tava-inisial, .tbaris-grup > .tcard:nth-child(3n) .tava-inisial { background: var(--sec); }
 .tmeta { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 1px; }
 .tnama { font-size: 15px; font-weight: 700; letter-spacing: -0.005em; }
 .tinst { font-size: 12px; line-height: 17px; color: var(--ink2); overflow-wrap: anywhere; }
@@ -325,6 +325,16 @@ body.ada-bar .wa-float { bottom: 100px; }
 .tisi { margin: 0; font: italic 400 18px/1.6 var(--serif); color: var(--ink-800); overflow-wrap: anywhere; }
 .tprod { margin-top: auto; align-self: flex-start; display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; background: var(--low); border: 1px solid var(--line); border-radius: 6px; font: 500 11px/16px var(--mono); color: var(--ink-700); }
 .tprod > i { color: var(--bronze); }
+/* Beranda: dua baris testimoni berjalan berlawanan arah (berhenti saat disorot/disentuh) */
+.tmarquee { display: flex; flex-direction: column; gap: 6px; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%); }
+.tbaris { overflow: hidden; padding: 6px 0 14px; }
+.tbaris-jalur { display: flex; width: max-content; animation: testiKiri var(--durasi, 72s) linear infinite; }
+.tbaris[data-arah="kanan"] .tbaris-jalur { animation-name: testiKanan; }
+.tbaris:hover .tbaris-jalur, .tbaris:focus-within .tbaris-jalur { animation-play-state: paused; }
+.tbaris-grup { display: flex; gap: 20px; padding-right: 20px; }
+.tbaris .tcard { flex: 0 0 360px; }
+@keyframes testiKiri { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes testiKanan { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 .list-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 48px 0 20px; flex-wrap: wrap; }
 .list-head .h3 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
@@ -657,6 +667,7 @@ body.ada-bar .wa-float { bottom: 100px; }
   .g2, .cek-list, .nota-data, .nota-meta { grid-template-columns: minmax(0, 1fr); }
   .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .pbody { padding: 14px; }
+  .tbaris .tcard { flex-basis: 290px; }
   .ptitle { font-size: 18px; }
   .kpi-grid, .kpi-grid.kpi-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat-grid { grid-template-columns: minmax(0, 1fr); }
@@ -700,6 +711,10 @@ body.ada-bar .wa-float { bottom: 100px; }
 /* ---------- Gerakan minimal ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  /* Testimoni Beranda tidak berjalan: digeser manual, tanpa salinan kartu */
+  .tbaris { overflow-x: auto; }
+  .tbaris-jalur { animation: none !important; }
+  .tbaris-grup[aria-hidden="true"], .tbaris .tcard[aria-hidden="true"] { display: none; }
 }
 
 /* ---------- Cetak (hanya kertas nota) ---------- */
