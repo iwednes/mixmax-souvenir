@@ -556,19 +556,6 @@
     const banyak = daftar.length > 1;
     $$('#banner .banner-nav').forEach(function (el) { el.hidden = !banyak; });
     byId('banner').hidden = daftar.length === 0;
-    tandaBanner();
-  }
-
-  /** Penanda posisi slide (titik + "SLIDE 01/03"), hanya bila slide lebih dari satu. */
-  function tandaBanner() {
-    const total = $$('#bannerTrack .slide').length;
-    const el = byId('bannerPos');
-    el.hidden = total < 2;
-    if (total < 2) return;
-    let titik = '';
-    for (let k = 0; k < total; k++) titik += '<span' + (k === BNR.idx ? ' class="aktif"' : '') + '></span>';
-    el.innerHTML = '<span class="banner-titik">' + titik + '</span><span class="banner-garis"></span>' +
-      '<span>SLIDE <strong>' + dua(BNR.idx + 1) + '</strong>/' + dua(total) + '</span>';
   }
 
   function keSlide(i) {
@@ -580,7 +567,6 @@
       s.classList.toggle('aktif', a);
       if (a) s.removeAttribute('aria-hidden'); else s.setAttribute('aria-hidden', 'true');
     });
-    tandaBanner();
   }
 
   function aturBanner(aktif) {

@@ -255,7 +255,7 @@ body.ada-bar .wa-float { bottom: 100px; }
 .banner { position: relative; isolation: isolate; width: 100%; margin-top: 16px; aspect-ratio: 12 / 5; min-height: 440px; max-height: 600px; overflow: hidden; border-radius: var(--r3); background: linear-gradient(145deg, #1C1917 0%, #292524 60%, #1E2621 100%); box-shadow: var(--sh-lg); }
 .banner::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 4% 0%, rgba(140, 107, 62, 0.24), transparent 42%), radial-gradient(circle at 96% 100%, rgba(38, 78, 60, 0.34), transparent 46%); pointer-events: none; }
 .banner-track { position: absolute; inset: 0; }
-.slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 40px 96px 56px; opacity: 0; visibility: hidden; transition: opacity 300ms ease, visibility 0s linear 300ms; }
+.slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 40px 96px; opacity: 0; visibility: hidden; transition: opacity 300ms ease, visibility 0s linear 300ms; }
 .slide.aktif { opacity: 1; visibility: visible; transition: opacity 300ms ease; }
 .slide-bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
 .slide-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(28, 25, 23, 0.30) 0%, rgba(28, 25, 23, 0.62) 100%); }
@@ -268,12 +268,6 @@ body.ada-bar .wa-float { bottom: 100px; }
 .banner-nav:hover { background: #FFFFFF; transform: translateY(-50%) scale(1.06); }
 .banner-nav.prev { left: 20px; }
 .banner-nav.next { right: 20px; }
-.banner-pos { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: 12px; padding: 6px 16px; background: rgba(28, 25, 23, 0.82); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--pill); font: 500 11px/16px var(--mono); letter-spacing: 0.1em; color: var(--ink-200); white-space: nowrap; }
-.banner-pos strong { color: var(--bronze-line); font-weight: 700; }
-.banner-titik { display: flex; gap: 6px; align-items: center; }
-.banner-titik span { width: 8px; height: 8px; border-radius: var(--pill); background: rgba(255, 255, 255, 0.4); transition: width var(--t), background var(--t); }
-.banner-titik span.aktif { width: 20px; background: var(--bronze-terang); }
-.banner-garis { width: 1px; height: 12px; background: rgba(255, 255, 255, 0.2); }
 .banner-mini { aspect-ratio: 12 / 5; min-height: 0; margin-top: 0; pointer-events: none; border-radius: var(--r2); box-shadow: none; }
 .banner-mini .slide { padding: 14px 24px; }
 .banner-mini .slide-card { padding: 14px 16px; gap: 6px; box-shadow: var(--sh); }
@@ -646,7 +640,7 @@ body.ada-bar .wa-float { bottom: 100px; }
   .tgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .co-grid, .tform-grid, .about-grid, .kontak-grid { grid-template-columns: minmax(0, 1fr); }
   .ftr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .slide { padding: 32px 72px 56px; }
+  .slide { padding: 32px 72px; }
   .adm-side { transform: translateX(-100%); transition: transform 200ms ease; box-shadow: 12px 0 32px rgba(28, 25, 23, 0.3); }
   .adm-side.buka { transform: translateX(0); }
   .adm-main { margin-left: 0; }
@@ -669,7 +663,7 @@ body.ada-bar .wa-float { bottom: 100px; }
   .visi-card, .misi-card { padding: 28px 24px; }
   .visi-teks { font-size: 20px; }
   .banner { aspect-ratio: auto; min-height: 460px; border-radius: var(--r2); }
-  .slide { padding: 20px 16px 64px; }
+  .slide { padding: 20px 16px; }
   .slide-card { padding: 28px 24px; }
   .slide-judul { font-size: 32px; line-height: 1.12; }
   .slide-sub { font-size: 15px; line-height: 24px; }
