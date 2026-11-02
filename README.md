@@ -6,7 +6,7 @@ yang berperan sebagai REST API (JSON) — kode backend-nya **tidak** disimpan di
 
 ```
 index.html        ← semua halaman publik + panel admin (SPA)
-css/style.css     ← tampilan "Mixmax Souvenir Blue-Green"
+css/style.css     ← tampilan "Haute Archive" (krem, espresso, bronze)
 js/config.js      ← GAS_URL: alamat Web App Apps Script (/exec)  ← satu-satunya yang diedit
 js/app.js         ← logika halaman, keranjang, form, panel admin
 ```

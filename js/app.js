@@ -556,6 +556,19 @@
     const banyak = daftar.length > 1;
     $$('#banner .banner-nav').forEach(function (el) { el.hidden = !banyak; });
     byId('banner').hidden = daftar.length === 0;
+    tandaBanner();
+  }
+
+  /** Penanda posisi slide (titik + "SLIDE 01/03"), hanya bila slide lebih dari satu. */
+  function tandaBanner() {
+    const total = $$('#bannerTrack .slide').length;
+    const el = byId('bannerPos');
+    el.hidden = total < 2;
+    if (total < 2) return;
+    let titik = '';
+    for (let k = 0; k < total; k++) titik += '<span' + (k === BNR.idx ? ' class="aktif"' : '') + '></span>';
+    el.innerHTML = '<span class="banner-titik">' + titik + '</span><span class="banner-garis"></span>' +
+      '<span>SLIDE <strong>' + dua(BNR.idx + 1) + '</strong>/' + dua(total) + '</span>';
   }
 
   function keSlide(i) {
@@ -567,6 +580,7 @@
       s.classList.toggle('aktif', a);
       if (a) s.removeAttribute('aria-hidden'); else s.setAttribute('aria-hidden', 'true');
     });
+    tandaBanner();
   }
 
   function aturBanner(aktif) {
@@ -1499,8 +1513,8 @@
       data: {
         labels: tren.label,
         datasets: [
-          { type: 'bar', label: 'Penjualan (Rp)', data: tren.penjualan, backgroundColor: 'rgba(29, 78, 216, 0.85)', borderRadius: 2, yAxisID: 'y', order: 2 },
-          { type: 'line', label: 'Jumlah pesanan', data: tren.pesanan, borderColor: '#047857', backgroundColor: '#047857', borderWidth: 2, tension: 0.3, pointRadius: 3, yAxisID: 'y1', order: 1 }
+          { type: 'bar', label: 'Penjualan (Rp)', data: tren.penjualan, backgroundColor: 'rgba(28, 25, 23, 0.85)', borderRadius: 6, yAxisID: 'y', order: 2 },
+          { type: 'line', label: 'Jumlah pesanan', data: tren.pesanan, borderColor: '#8C6B3E', backgroundColor: '#8C6B3E', borderWidth: 2, tension: 0.3, pointRadius: 3, yAxisID: 'y1', order: 1 }
         ]
       },
       options: {
@@ -1509,18 +1523,18 @@
         animation: GERAK_MINIM ? false : { duration: 250 },
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { position: 'top', align: 'end', labels: { boxWidth: 12, color: '#0B1B3F', font: { family: 'Geist' } } },
+          legend: { position: 'top', align: 'end', labels: { boxWidth: 12, color: '#1C1917', font: { family: 'Hanken Grotesk' } } },
           tooltip: { callbacks: { label: function (c) { return c.dataset.yAxisID === 'y' ? ' Penjualan: ' + rupiah(c.parsed.y) : ' Pesanan: ' + c.parsed.y; } } }
         },
         scales: {
-          y: { beginAtZero: true, ticks: { color: '#4A5878', callback: function (v) { return singkatRp(v); } }, grid: { color: '#E6EEFD' } },
-          y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { precision: 0, color: '#4A5878' } },
-          x: { grid: { display: false }, ticks: { color: '#4A5878', maxRotation: 0, autoSkip: true } }
+          y: { beginAtZero: true, ticks: { color: '#716A65', callback: function (v) { return singkatRp(v); } }, grid: { color: '#F1EDE7' } },
+          y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { precision: 0, color: '#716A65' } },
+          x: { grid: { display: false }, ticks: { color: '#716A65', maxRotation: 0, autoSkip: true } }
         }
       }
     });
     const satuan = jenis === 'hari' ? 'per jam' : (tren.label.length > 0 && /^\d/.test(tren.label[0]) ? 'per hari' : 'per bulan');
-    byId('grafikKet').textContent = 'Batang biru: penjualan (Rp). Garis hijau: jumlah pesanan. Dikelompokkan ' + satuan + '.';
+    byId('grafikKet').textContent = 'Batang gelap: penjualan (Rp). Garis bronze: jumlah pesanan. Dikelompokkan ' + satuan + '.';
   }
 
   // ============================================================
