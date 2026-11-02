@@ -278,7 +278,7 @@ body.ada-bar .wa-float { bottom: 100px; }
 .banner-mini .btn { min-height: 30px; padding: 4px 10px; font-size: 10px; }
 
 /* ---------- Visi, misi, pilar ---------- */
-.visi-card, .misi-card { position: relative; overflow: hidden; padding: 36px; transition: box-shadow var(--t); }
+.visi-card, .misi-card { position: relative; overflow: hidden; padding: 36px; transition: box-shadow 300ms ease, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .misi-card { background: var(--card); border-color: var(--line); box-shadow: var(--sh-sm); }
 .visi-card:hover, .misi-card:hover { box-shadow: var(--sh); }
 .visi-card > *, .misi-card > * { position: relative; z-index: 1; }
@@ -297,8 +297,8 @@ body.ada-bar .wa-float { bottom: 100px; }
 .misi-card > .btn-ghost:hover:not([disabled]) { background: none; color: var(--ink); }
 .misi-card > .btn-ghost > .bi { color: inherit; }
 .pilar-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
-.pilar { position: relative; overflow: hidden; padding: 28px 24px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r2); box-shadow: var(--sh-sm); display: flex; flex-direction: column; gap: 10px; transition: box-shadow var(--t), transform var(--t); }
-.pilar:hover { box-shadow: var(--sh); transform: translateY(-2px); }
+.pilar { position: relative; overflow: hidden; padding: 28px 24px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r2); box-shadow: var(--sh-sm); display: flex; flex-direction: column; gap: 10px; transition: box-shadow 300ms ease, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.pilar:hover { box-shadow: var(--sh); }
 .pilar > i { position: relative; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; font-size: 19px; color: var(--ink-800); background: var(--mid); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 6px; }
 .pilar:nth-child(even) > i { color: var(--bronze); background: var(--bronze-c); border-color: var(--bronze-line); }
 .pilar-no { position: absolute; top: -6px; right: 16px; font: italic 400 64px/1 var(--serif); color: var(--mid); pointer-events: none; }
@@ -307,7 +307,7 @@ body.ada-bar .wa-float { bottom: 100px; }
 
 /* ---------- Testimoni ---------- */
 .tgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-.tcard { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 28px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r2); box-shadow: var(--sh-sm); transition: box-shadow var(--t); }
+.tcard { position: relative; display: flex; flex-direction: column; gap: 14px; padding: 28px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r2); box-shadow: var(--sh-sm); transition: box-shadow 300ms ease, transform 300ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .tcard:hover { box-shadow: var(--sh); }
 .tcard.baru { border-color: var(--sec-line); box-shadow: 0 0 0 3px var(--sec-c), var(--sh-sm); }
 .tbaru { align-self: flex-start; }
@@ -326,8 +326,15 @@ body.ada-bar .wa-float { bottom: 100px; }
 .tprod { margin-top: auto; align-self: flex-start; display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; background: var(--low); border: 1px solid var(--line); border-radius: 6px; font: 500 11px/16px var(--mono); color: var(--ink-700); }
 .tprod > i { color: var(--bronze); }
 /* Beranda: dua baris testimoni berjalan berlawanan arah (berhenti saat disorot/disentuh) */
-.tmarquee { display: flex; flex-direction: column; gap: 6px; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%); }
-.tbaris { overflow: hidden; padding: 6px 0 14px; }
+.tmarquee { display: flex; flex-direction: column; gap: 0; -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 48px, #000 calc(100% - 48px), transparent 100%); }
+.tbaris { overflow: hidden; padding: 12px 0 18px; }
+.tbaris .tcard:hover { box-shadow: 0 8px 18px -10px rgba(28, 25, 23, 0.2); }
+/* Kartu Beranda sedikit terangkat & membesar saat disorot mouse (tidak aktif di layar sentuh) */
+@media (hover: hover) and (pointer: fine) {
+  .visi-card:hover, .misi-card:hover { transform: translateY(-4px) scale(1.015); }
+  .pilar:hover { transform: translateY(-4px) scale(1.03); }
+  .tbaris .tcard:hover { transform: translateY(-3px) scale(1.03); }
+}
 .tbaris-jalur { display: flex; width: max-content; animation: testiKiri var(--durasi, 72s) linear infinite; }
 .tbaris[data-arah="kanan"] .tbaris-jalur { animation-name: testiKanan; }
 .tbaris:hover .tbaris-jalur, .tbaris:focus-within .tbaris-jalur { animation-play-state: paused; }
@@ -711,6 +718,7 @@ body.ada-bar .wa-float { bottom: 100px; }
 /* ---------- Gerakan minimal ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .visi-card:hover, .misi-card:hover, .pilar:hover, .tbaris .tcard:hover { transform: none; }
   /* Testimoni Beranda tidak berjalan: digeser manual, tanpa salinan kartu */
   .tbaris { overflow-x: auto; }
   .tbaris-jalur { animation: none !important; }
