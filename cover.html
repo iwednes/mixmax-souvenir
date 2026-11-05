@@ -40,8 +40,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font
 
 main{position:fixed;inset:0;z-index:2;overflow:hidden;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.reel{position:relative;height:100%;will-change:transform,opacity}
-.stage{height:100%;display:flex;align-items:center;padding-block:96px 40px;padding-inline:clamp(0px,3vw,48px)}
+.reel{position:relative;height:100%;max-width:1240px;margin-inline:auto;will-change:transform,opacity}
+.stage{box-sizing:border-box;height:100%;display:flex;align-items:center;padding-block:96px 40px;padding-inline:24px}
 
 .hero-inner{display:grid;gap:18px;max-width:480px}
 .hero h1{font-family:var(--serif);font-weight:400;font-size:clamp(2.5rem,1.7rem + 3vw,3.75rem);line-height:1.04;
@@ -58,7 +58,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
 .big{position:absolute;top:-8px;right:20px;font-family:var(--serif);font-style:italic;font-size:88px;line-height:1;
   color:var(--high);pointer-events:none;user-select:none}
 .panel h2{position:relative;font-family:var(--serif);font-weight:400;font-size:clamp(1.65rem,1.35rem + 1vw,2.05rem);
-  line-height:1.12;letter-spacing:-.005em;margin:0;text-wrap:balance}
+  line-height:1.12;letter-spacing:-.005em;margin:0;padding-right:72px;text-wrap:balance}
 .panel p{margin:0;font-size:15px;line-height:1.6;color:var(--ink-700)}
 .cta{justify-self:start;display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-weight:700;font-size:11.5px;
   letter-spacing:.12em;text-transform:uppercase;color:var(--bronze);text-decoration:none;padding-top:4px}
@@ -82,8 +82,11 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
 .btn-masuk:hover{background:var(--ink-800)}
 .btn-masuk:focus-visible{outline:2px solid var(--bronze);outline-offset:3px}
 
+@media (min-width:760px){
+  .hud-top{padding-inline:max(40px,calc((100vw - 1240px) / 2 + 24px))}   /* lines up with the website's 1240px content width */
+}
 @media (max-width:759px){
-  .stage{box-sizing:border-box;align-items:flex-end;padding-block:0 calc(20px + env(safe-area-inset-bottom,0px));padding-inline:0}
+  .stage{align-items:flex-end;padding-block:0 calc(20px + env(safe-area-inset-bottom,0px));padding-inline:0}
   .hero-inner{max-width:none;padding:26px 24px 24px;background:var(--card);border:1px solid var(--line);
     border-radius:16px;box-shadow:var(--sh-sm);gap:14px}
   .hero h1{font-size:2.3rem}
@@ -177,7 +180,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   var IDLE = 5, FADE = 1.4;        // seconds without activity that count as idle; length of the fade before leaving
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var small = Math.min(innerWidth, innerHeight) < 700;
-  var N = 14000;                   // the same particles on every screen; slow phones lower the resolution instead (keepSmooth)
+  var N = 30000;                   // the same particles on every screen; slow phones lower the resolution instead (keepSmooth)
   function easeInOut(t){ t = Math.max(0, Math.min(1, t)); return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
 
   /* ---------- timeline: when each product glides in, matched to the narration in cerita.mp3 ----------
@@ -375,15 +378,6 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   }
   function ring(r, y){ var a = rnd()*TAU; return [Math.cos(a)*r, y, Math.sin(a)*r]; }
 
-  function makeSphere(){
-    var pts = [];
-    while (pts.length < N){
-      var u = rnd()*2 - 1, th = rnd()*TAU, r = Math.sqrt(1 - u*u), R = 1.68 + (rnd() - 0.5)*0.05;
-      pts.push([Math.cos(th)*r*R, u*R, Math.sin(th)*r*R]);
-    }
-    return pts;
-  }
-
   function makeBulb(){
     var pts = [], cy = 0.55, GR = 1.15, cut = -0.75, neckR = Math.sqrt(GR*GR - cut*cut);
     var fil = [[-0.28, 0.22], [-0.14, 0.62], [0, 0.36], [0.14, 0.62], [0.28, 0.22]];
@@ -532,30 +526,22 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     return pts;
   }
 
-  function heartXY(t){
-    var s = Math.sin(t);
-    return [16*s*s*s, 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t) + 2.7];
-  }
-  function makeHeart(){
-    var sc = 0.112, pts = [];
+  function makeHeart(){            // the implicit heart (x²+y²-1)³ - x²y³ <= 0, filled evenly and domed, so no seam shows
+    var sc = 1.5, pts = [];
     while (pts.length < N){
-      var c = heartXY(rnd()*TAU), p;
-      if (rnd() < 0.16){
-        p = [c[0]*sc, c[1]*sc, (rnd()*2-1)*0.12];
-      } else {
-        var r = Math.sqrt(rnd()), sign = rnd() < 0.5 ? -1 : 1;
-        p = [c[0]*sc*r, c[1]*sc*r, sign*0.55*Math.sqrt(Math.max(0, 1 - r*r)) + (rnd()-0.5)*0.03];
-      }
-      pts.push(p);
+      var x = (rnd()*2 - 1)*1.2, y = rnd()*2.4 - 1.15, a = x*x + y*y - 1, f = a*a*a - x*x*y*y*y;
+      if (f > 0) continue;
+      var z = (rnd() < 0.5 ? -1 : 1) * 0.42 * Math.pow(-f, 0.3);
+      pts.push([x*sc, (y - 0.1)*sc, z*sc]);
     }
     return pts;
   }
 
   var TEXT_FONT = '"Hanken Grotesk",system-ui,Arial,sans-serif';
-  function makeText(){
+  function textCandidates(){       // pixels of the brand name drawn in the brand font; needs the page, so it stays on the main thread
     var W = 1400, H = 640, cv = document.createElement('canvas');
     cv.width = W; cv.height = H;
-    var g = cv.getContext('2d');
+    var g = cv.getContext('2d', {willReadFrequently: true});
     g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = '#000';
     // both lines set to the same width, so SOUVENIR sits as a justified second line
     function fit(txt){
@@ -573,24 +559,28 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     g.fillText('SOUVENIR', W/2, top + l1.cap + gap + l2.cap);
     var d = g.getImageData(0, 0, W, H).data, cand = [];
     for (var y = 0; y < H; y += 2) for (var x = 0; x < W; x += 2) if (d[(y*W + x)*4 + 3] > 140) cand.push(x, y);
-    if (!cand.length) return makeSphere();
-    var sc = 4.3 / W, pts = [];
+    return new Int16Array(cand);
+  }
+  function textPoints(cand){
+    var W = 1400, H = 640, sc = 4.3 / W, pts = [];
     while (pts.length < N){
       var j = Math.floor(rnd()*cand.length/2)*2;
-      pts.push([(cand[j] - W/2 + rnd()*2)*sc, -(cand[j+1] - H/2 + rnd()*2)*sc, (rnd()-0.5)*0.34]);
+      pts.push([(cand[j] - W/2 + rnd()*2)*sc, -(cand[j+1] - H/2 + rnd()*2)*sc, (rnd()-0.5)*0.12]);
     }
     return pts;
   }
 
   var LAST = COUNT - 1;
-  var shapes = [
-    pack(makeBulb()),
-    pack(yaw(makeBox(), 0.6)),
-    pack(yaw(makeTowel(), -0.25)),
-    pack(yaw(makeMug(), -0.45)),
-    pack(makeTumbler()),
-    pack(makeHeart()),
-    pack(makeSphere())          // stand-in until the font has loaded
+  /* the bulb is built here so the first frame has a shape; the rest come from a background worker,
+     so preparing 30,000 points per shape never freezes the page */
+  var bulb = pack(makeBulb());
+  var shapes = [bulb, bulb, bulb, bulb, bulb, bulb, bulb];
+  var RECIPES = [
+    function(){ return yaw(makeBox(), 0.6); },
+    function(){ return yaw(makeTowel(), -0.25); },
+    function(){ return yaw(makeMug(), -0.45); },
+    function(){ return makeTumbler(); },
+    function(){ return makeHeart(); }
   ];
 
   /* ---------- scene ---------- */
@@ -601,14 +591,17 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
 
   var C = {
     fog: new THREE.Color('#FDF9F3'),
-    warm: new THREE.Color('#ffb83f')
+    warm: new THREE.Color('#E0A93B'),
+    ink: new THREE.Color('#292524'),
+    bronze: new THREE.Color('#8C6B3E'),
+    gold: new THREE.Color('#C5A880')
   };
 
   var particleVS = [
-    'attribute vec3 aTo; attribute float aRand; attribute float aGlow0; attribute float aGlow1; attribute float aHue;',
+    'attribute vec3 aTo; attribute float aRand; attribute float aGlow0; attribute float aGlow1; attribute float aTint;',
     'uniform float uProg, uTime, uScale, uSize, uMotion, uMouseOn, uBurst;',
     'uniform vec2 uMouse;',
-    'varying float vDepth; varying float vTone; varying float vGlow; varying float vHue; varying float vSize;',
+    'varying float vDepth; varying float vTone; varying float vGlow; varying float vTint; varying float vSize;',
     'void main(){',
     '  float d = aRand * 0.35;',
     '  float p = smoothstep(d, d + 0.65, uProg);',
@@ -622,7 +615,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     '  vec4 world = modelMatrix * vec4(pos, 1.0);',
     '  vec2 dm = world.xy - uMouse;',
     '  float dist = length(dm);',
-    '  world.xy += normalize(dm + vec2(0.0001)) * smoothstep(1.15, 0.0, dist) * 0.6 * uMouseOn;',
+    '  world.xy += normalize(dm + vec2(0.0001)) * smoothstep(0.5, 0.0, dist) * 0.16 * uMouseOn;',
     '  vec4 mv = viewMatrix * world;',
     '  gl_Position = projectionMatrix * mv;',
     '  if (glow > 0.001) {',
@@ -630,41 +623,35 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     '    vec4 c2 = projectionMatrix * mv2;',
     '    gl_Position.z = c2.z / c2.w * gl_Position.w;',
     '  }',
-    '  gl_PointSize = uSize * uScale * (0.65 + aRand * 0.7) * (1.0 + 0.25 * glow) / -mv.z;',
+    '  gl_PointSize = max(2.0, uSize * uScale * (0.65 + aRand * 0.7) * (1.0 + 0.25 * glow) / -mv.z);',
     '  vDepth = -mv.z; vTone = aRand; vGlow = glow; vSize = gl_PointSize;',
-    '  vHue = aHue + aRand * 0.05 + uTime * uMotion * 0.035;',
+    '  vTint = aTint + (aRand - 0.5) * 0.18 + 0.05 * sin(t*0.5 + world.y*1.2);',   // a slow sheen drifting through the gradient
     '}'
   ].join('\n');
   var particleFS = [
-    'uniform vec3 uFog, uWarm; uniform float uFogNear, uFogFar, uPulse;',
-    'varying float vDepth; varying float vTone; varying float vGlow; varying float vHue; varying float vSize;',
-    'vec3 hsv2rgb(vec3 c){',
-    '  vec3 p = abs(fract(c.xxx + vec3(0.0, 2.0/3.0, 1.0/3.0)) * 6.0 - 3.0);',
-    '  return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);',
-    '}',
+    'uniform vec3 uFog, uWarm, uInk, uBronze, uGold; uniform float uFogNear, uFogFar, uPulse, uSoft;',
+    'varying float vDepth; varying float vTone; varying float vGlow; varying float vTint; varying float vSize;',
     'void main(){',
-    '  vec2 c = gl_PointCoord * 2.0 - 1.0; c.y = -c.y;',
+    '  vec2 c = gl_PointCoord * 2.0 - 1.0;',
     '  float r2 = dot(c, c); if (r2 > 1.0) discard;',
-    '  vec3 n = vec3(c, sqrt(1.0 - r2));',
-    '  float diff = clamp(dot(n, normalize(vec3(-0.35, 0.75, 0.55))), 0.0, 1.0);',
-    '  float rim = pow(1.0 - n.z, 2.0);',
-    '  vec3 base = hsv2rgb(vec3(fract(vHue), 0.7, 1.0));',
-    '  vec3 col = base * (0.4 + 0.66 * diff + vTone * 0.06) + vec3(0.18) * pow(diff, 8.0);',
-    '  col += rim * 0.05;',
-    '  col = mix(col, uWarm * (0.82 + 0.3 * diff) * uPulse, vGlow);',
+    '  float g = clamp(vTint, 0.0, 1.0);',           // brand gradient: espresso at the base, bronze, champagne on top
+    '  vec3 col = g < 0.5 ? mix(uInk, uBronze, g * 2.0) : mix(uBronze, uGold, (g - 0.5) * 2.0);',
+    '  col *= 0.94 + vTone * 0.12;',
+    '  col = mix(col, uWarm * uPulse, vGlow);',
     '  float fog = smoothstep(uFogNear, uFogFar, vDepth) * (1.0 - 0.75 * vGlow);',
     '  float edge = clamp((1.0 - sqrt(r2)) * vSize * 0.5, 0.0, 1.0);',   // one-pixel soft rim, smoothed by alphaToCoverage
-    '  gl_FragColor = vec4(mix(col, uFog, fog * 0.78), edge);',
+    '  gl_FragColor = vec4(mix(col, uFog, max(fog * 0.82, uSoft)), edge);',
     '}'
   ].join('\n');
 
-  function particleMaterial(size, burst){
+  function particleMaterial(size, burst, soft){
     return new THREE.ShaderMaterial({
       vertexShader: particleVS, fragmentShader: particleFS, alphaToCoverage: true,
       uniforms: {
         uProg:{value:0}, uTime:{value:0}, uScale:{value:1}, uSize:{value:size}, uMotion:{value: reduce ? 0 : 1},
-        uMouse:{value:new THREE.Vector2(99,99)}, uMouseOn:{value:0}, uBurst:{value:burst},
-        uFog:{value:C.fog}, uFogNear:{value:6}, uFogFar:{value:12}, uWarm:{value:C.warm}, uPulse:{value:1}
+        uMouse:{value:new THREE.Vector2(99,99)}, uMouseOn:{value:0}, uBurst:{value:burst}, uSoft:{value:soft},
+        uFog:{value:C.fog}, uFogNear:{value:6}, uFogFar:{value:12}, uWarm:{value:C.warm}, uPulse:{value:1},
+        uInk:{value:C.ink}, uBronze:{value:C.bronze}, uGold:{value:C.gold}
       }
     });
   }
@@ -681,11 +668,11 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   geo.setAttribute('aRand', randAttr(N, 0, 1));
   geo.setAttribute('aGlow0', zeroAttr(N));
   geo.setAttribute('aGlow1', zeroAttr(N));
-  // rainbow by height rank: shapes are sorted bottom to top, so index i is always the i-th lowest point
-  var hueArr = new Float32Array(N);
-  for (var hi = 0; hi < N; hi++) hueArr[hi] = hi / N;
-  geo.setAttribute('aHue', new THREE.BufferAttribute(hueArr, 1));
-  var mat = particleMaterial(0.046, 1);
+  // gradient by height rank: shapes are sorted bottom to top, so index i is always the i-th lowest point
+  var tintArr = new Float32Array(N);
+  for (var ti = 0; ti < N; ti++) tintArr[ti] = ti / N;
+  geo.setAttribute('aTint', new THREE.BufferAttribute(tintArr, 1));
+  var mat = particleMaterial(0.028, 0.7, 0);
   var points = new THREE.Points(geo, mat);
   points.frustumCulled = false;
   group.add(points);
@@ -704,14 +691,14 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   halo.scale.set(3.4, 3.4, 1);
   group.add(halo);
 
-  // dotted rainbow rings beneath the object
-  var ringPts = [], ringHue = [];
-  [1.55, 1.95, 2.4, 2.95, 3.6].forEach(function(r){
-    var cnt = Math.round(N * 0.035 * r);
+  // two fine bronze rings beneath the object
+  var ringPts = [], ringTint = [];
+  [1.75, 2.2].forEach(function(r){
+    var cnt = Math.round(N * 0.016 * r);
     for (var i = 0; i < cnt; i++){
-      var a = rnd()*TAU, rr = r + (rnd()-0.5)*0.05;
-      ringPts.push(Math.cos(a)*rr, (rnd()-0.5)*0.02, Math.sin(a)*rr);
-      ringHue.push(a / TAU);
+      var a = rnd()*TAU, rr = r + (rnd()-0.5)*0.03;
+      ringPts.push(Math.cos(a)*rr, (rnd()-0.5)*0.01, Math.sin(a)*rr);
+      ringTint.push(0.5);
     }
   });
   var ringArr = new Float32Array(ringPts), ringN = ringArr.length/3;
@@ -721,14 +708,14 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   ringGeo.setAttribute('aRand', randAttr(ringN, 0, 0.6));
   ringGeo.setAttribute('aGlow0', zeroAttr(ringN));
   ringGeo.setAttribute('aGlow1', zeroAttr(ringN));
-  ringGeo.setAttribute('aHue', new THREE.BufferAttribute(new Float32Array(ringHue), 1));
-  var ringMat = particleMaterial(0.032, 0);
+  ringGeo.setAttribute('aTint', new THREE.BufferAttribute(new Float32Array(ringTint), 1));
+  var ringMat = particleMaterial(0.018, 0, 0.4);
   var rings = new THREE.Points(ringGeo, ringMat);
   rings.frustumCulled = false;
   scene.add(rings);
 
   // drifting bronze specks
-  var DUST = small ? 220 : 440, dustArr = new Float32Array(DUST*3);
+  var DUST = small ? 70 : 140, dustArr = new Float32Array(DUST*3);
   for (var i = 0; i < DUST; i++){ dustArr[i*3] = (rnd()*2-1)*9; dustArr[i*3+1] = (rnd()*2-1)*6; dustArr[i*3+2] = -6 + rnd()*10; }
   var dustGeo = new THREE.BufferGeometry();
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dustArr, 3));
@@ -744,8 +731,8 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
       '  p.x += sin(t*0.4 + aRand*20.0) * 0.3;',
       '  vec4 mv = modelViewMatrix * vec4(p, 1.0);',
       '  gl_Position = projectionMatrix * mv;',
-      '  gl_PointSize = (0.02 + aRand*0.035) * uScale / -mv.z;',
-      '  vA = 0.25 + aRand*0.35;',
+      '  gl_PointSize = (0.012 + aRand*0.018) * uScale / -mv.z;',
+      '  vA = 0.12 + aRand*0.2;',
       '}'
     ].join('\n'),
     fragmentShader: [
@@ -768,9 +755,37 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     at.aGlow0.array.set(a.glow); at.aGlow1.array.set(b.glow);
     at.position.needsUpdate = at.aTo.needsUpdate = at.aGlow0.needsUpdate = at.aGlow1.needsUpdate = true;
   }
+  function shapeReady(k, s){
+    shapes[k] = s;
+    if (pairI === k || (pairI + 1) % COUNT === k){ var p = pairI; pairI = -1; setPair(p); }
+  }
+  var worker = null, textCand = null;
+  function buildHere(){            // no worker on this page: the same work on the main thread
+    if (worker){ worker.terminate(); worker = null; }
+    RECIPES.forEach(function(f, i){ if (shapes[i + 1] === bulb) shapeReady(i + 1, pack(f())); });
+    if (textCand) shapeReady(LAST, pack(textPoints(textCand)));
+  }
+  try {
+    worker = new Worker(URL.createObjectURL(new Blob([
+      'var N=' + N + ',rnd=Math.random,TAU=Math.PI*2;\n' +
+      [pack, yaw, facePoint, makeBox, makeTowel, makeMug, makeTumbler, makeHeart, textPoints].map(String).join('\n') +
+      '\nvar R=[' + RECIPES.map(String).join(',') + '];\n' +
+      'function send(k,s){postMessage({k:k,pos:s.pos,glow:s.glow},[s.pos.buffer,s.glow.buffer]);}\n' +
+      'onmessage=function(e){send(' + LAST + ',pack(textPoints(e.data)));};\n' +
+      'R.forEach(function(f,i){send(i+1,pack(f()));});'
+    ], {type: 'text/javascript'})));
+    worker.onmessage = function(e){
+      shapeReady(e.data.k, e.data);
+      if (e.data.k === LAST){ worker.terminate(); worker = null; }
+    };
+    worker.onerror = buildHere;
+  } catch (e) { worker = null; buildHere(); }
   function textReady(){
-    shapes[LAST] = pack(makeText());
-    if (pairI >= LAST - 1){ var k = pairI; pairI = -1; setPair(k); }
+    var cand = textCandidates();
+    if (!cand.length) return;
+    textCand = cand;
+    if (worker) worker.postMessage(cand);
+    else shapeReady(LAST, pack(textPoints(cand)));
   }
   if (document.fonts && document.fonts.load){
     var done = false, finish = function(){ if (!done){ done = true; textReady(); } };
@@ -792,14 +807,15 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     var R = 2.15, stacked = W < 760;
     if (stacked){
       var vFrac = 0.54;
-      dist = Math.max(R*1.12/(vFrac*tanH), R*1.12/(tanH*aspect));
+      dist = Math.max(R*1.45/(vFrac*tanH), R*1.45/(tanH*aspect));
       offX = 0; offY = (1 - vFrac) * dist * tanH * 0.92;
     } else {
+      var wrapR = Math.min(W, (W + 1240) / 2);     // right edge of the website's content width
       var freeL = Math.min(W*0.52, (firstPanel ? firstPanel.getBoundingClientRect().right : 440) + 24);
-      var freeFrac = (W - freeL) / W;
-      dist = Math.max(R*1.25/tanH, R*1.15/(freeFrac*tanH*aspect));
-      var hh = dist*tanH, cx = (freeL + (W - freeL)/2) / W * 2 - 1;
-      offX = cx * hh * aspect; offY = 0.08 * hh;
+      var freeFrac = (wrapR - freeL) / W;
+      dist = Math.max(R*1.85/tanH, R*1.3/(freeFrac*tanH*aspect));
+      var hh = dist*tanH, cx = (freeL + wrapR) / W - 1;
+      offX = cx * hh * aspect; offY = -0.05 * hh;
     }
     camera.position.set(0, dist*0.07, dist);
     camera.lookAt(0, 0, 0);
@@ -808,7 +824,8 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     [mat, ringMat, dustMat].forEach(function(m){ m.uniforms.uScale.value = scale; });
     [mat, ringMat].forEach(function(m){ m.uniforms.uFogNear.value = dist - 1.6; m.uniforms.uFogFar.value = dist + 3.6; });
     group.position.set(offX, offY, 0);
-    rings.position.set(offX, offY - 2.3, 0);
+    rings.position.set(offX, offY - 2.15, 0);
+    rings.rotation.x = stacked ? 0.2 : 0;      // on phones the rings sit at eye level: tilt them so they stay rings, not a line
     measureTops();
   }
   layout();
@@ -870,7 +887,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     var pulse = reduce ? 1 : 0.95 + 0.07 * Math.sin(time * 2.1);
     u.uPulse.value = pulse;
     var lampOn = i === 0 ? 1 - prog : (i === LAST ? prog : 0);
-    halo.material.opacity = lampOn * 0.55 * pulse;
+    halo.material.opacity = lampOn * 0.32 * pulse;
     u.uMouseOn.value += (mouseOn - u.uMouseOn.value) * (1 - Math.exp(-dt*5));
     u.uMouse.value.lerp(mouseT, 1 - Math.exp(-dt*10));
     ringMat.uniforms.uTime.value = time;
@@ -878,10 +895,10 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     ringMat.uniforms.uMouseOn.value = u.uMouseOn.value;
     dustMat.uniforms.uTime.value = time;
 
-    // one full turn while morphing, then each shape rests facing the viewer; the text holds still
+    // a calm sway while morphing, then each shape rests facing the viewer; the text holds still
     var textW = s <= LAST ? Math.max(0, Math.min(1, s - (LAST - 1))) : Math.max(0, 1 - (s - LAST));
     var idle = reduce ? 0 : Math.sin(time*0.3) * 0.32;
-    group.rotation.y = s * TAU + idle * (1 - textW);
+    group.rotation.y = Math.sin(prog * Math.PI) * 0.8 + idle * (1 - textW);
     group.rotation.x = 0.16 * (1 - textW) + (reduce ? 0 : Math.sin(time*0.23) * 0.04);
     rings.rotation.y = reduce ? 0 : time * 0.05;
 
