@@ -486,6 +486,8 @@
     tampilkanPublik();
     if (S.publikKotor) segarkanPublik();
     S.rute = rute;
+    window.MMX_RUTE = rute;
+    window.dispatchEvent(new CustomEvent('mmx-rute', { detail: rute }));
     const halaman = (rute === 'keranjang' || rute === 'nota') ? 'produk' : rute;
     $$('#main > .page').forEach(function (pg) { pg.hidden = pg.id !== 'pg-' + halaman; });
     byId('sub-katalog').hidden = rute !== 'produk';
