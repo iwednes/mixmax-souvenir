@@ -3,6 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    // Kunjungan baru melihat cover 3D dulu, sekali per sesi browser. ?dari=cover = baru saja melewati cover.
+    (function () {
+      try {
+        if (/[?&]dari=cover/.test(location.search)) {
+          sessionStorage.setItem('mmx_cover', '1');
+          history.replaceState(null, '', location.pathname);
+          return;
+        }
+        if (sessionStorage.getItem('mmx_cover')) return;
+      } catch (e) { return; }
+      location.replace('cover.html');
+    })();
+  </script>
   <title>Mixmax Souvenir</title>
   <meta name="description" content="Souvenir dan merchandise kustom untuk perusahaan, seminar, dan acara. Pilih produk, dapatkan nota pesanan langsung, DP 50% via WhatsApp.">
   <meta name="theme-color" content="#FDF9F3">

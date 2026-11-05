@@ -5,6 +5,8 @@ Data, pesanan, nota PDF, email, dan login admin diproses oleh **Google Apps Scri
 yang berperan sebagai REST API (JSON) — kode backend-nya **tidak** disimpan di repository ini.
 
 ```
+cover.html        ← cover 3D 25 detik sebelum masuk website (sekali per sesi browser)
+cerita.mp3        ← suara narator + musik untuk cover
 index.html        ← semua halaman publik + panel admin (SPA)
 css/style.css     ← tampilan "Haute Archive" (krem, espresso, bronze)
 js/config.js      ← GAS_URL: alamat Web App Apps Script (/exec)  ← satu-satunya yang diedit
