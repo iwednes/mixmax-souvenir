@@ -222,43 +222,39 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     reel.style.opacity = op.toFixed(3);
   }
 
-  /* ---------- soundtrack: one 25 s mix (narrator over soft music), played once in step with the visuals ---------- */
+  /* ---------- soundtrack: one 25 s mix (narrator over soft music), played once in step with the visuals.
+     An <audio> element, not Web Audio: Chrome counts media-element playback towards allowing sound by itself
+     on later visits, and on iPhone it still plays with the silent switch on. ---------- */
   var hint = document.getElementById('hint');
-  var actx = null, story = null, storyData = null, decoding = false, src = null, audioBase = null;
+  var suara = new Audio('cerita.mp3'), berbunyi = false, hilangSejak = 0;
+  suara.preload = 'auto';
   var perfStart = performance.now();
   var autoEnter = true, entering = false;
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
-  try { var AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); } catch (e) { actx = null; }
 
   function storyTime(){            // seconds since the story (re)started
-    return audioBase !== null ? actx.currentTime - audioBase : (performance.now() - perfStart) / 1000;
+    if (berbunyi && !suara.paused && !suara.ended){
+      var slip = performance.now() - perfStart - suara.currentTime * 1000;
+      if (Math.abs(slip) > 250) perfStart += slip;   // the sound stalled or lagged: the picture follows it
+    }
+    return (performance.now() - perfStart) / 1000;
   }
   function cycleTime(){
     var t = Math.max(0, storyTime());
     return autoEnter ? Math.min(t, HOLD) : t % CYCLE;
   }
-  function tryStart(){
-    if (!actx || src) return;
-    if (!story){
-      if (storyData && !decoding){
-        decoding = true;
-        var data = storyData; storyData = null;
-        try {
-          var p = actx.decodeAudioData(data, function(buf){ story = buf; tryStart(); }, function(){});
-          if (p && p.catch) p.catch(function(){});
-        } catch (e) {}
-      }
-      return;
-    }
-    if (actx.state !== 'running'){ hint.hidden = false; return; }
+  function suaraJalan(){
+    if (berbunyi) return;
     if (storyTime() > 0.6) softRestart();
-    src = actx.createBufferSource();
-    src.buffer = story; src.loop = !autoEnter; src.loopStart = 0; src.loopEnd = CYCLE;
-    src.connect(actx.destination);
-    var when = actx.currentTime + 0.06;
-    src.start(when, 0);
-    audioBase = when;              // the story restarts from the first line together with the sound
+    berbunyi = true;
+    perfStart = performance.now() - suara.currentTime * 1000;   // the story restarts from the first line together with the sound
     hint.hidden = true;
+  }
+  function tryStart(){
+    if (berbunyi || entering) return;
+    var p = suara.play();
+    if (p && p.then) p.then(suaraJalan, function(){ if (!berbunyi) hint.hidden = false; });
+    else suaraJalan();
   }
   function softRestart(){          // sound arrived late, so the story jumps back to its start: cover the jump with a short fade-in
     [document.getElementById('gl'), document.querySelector('main')].forEach(function(el){
@@ -270,30 +266,27 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     });
   }
   function unlock(e){
-    if (!actx || src) return;
+    if (berbunyi) return;
     if (e.target.closest && e.target.closest('[data-masuk]')) return;   // leaving anyway: no burst of sound
-    if (actx.state !== 'running'){
-      var r = actx.resume();
-      if (r && r.then) r.then(tryStart, function(){});
-    } else tryStart();
+    tryStart();
   }
-  fetch('cerita.mp3').then(function(r){ return r.ok ? r.arrayBuffer() : null; })
-    .then(function(b){ storyData = b; tryStart(); }).catch(function(){});
-  if (actx){
-    var first = actx.resume();                      // play straight away where the browser allows it
-    if (first && first.then) first.then(tryStart, function(){});
-    actx.onstatechange = tryStart;
-    // browsers hold sound back until the first touch or click on a page: say so while it lasts
-    if (window.matchMedia && !matchMedia('(pointer: coarse)').matches) hint.textContent = 'Klik layar untuk mendengar ceritanya';
-    setTimeout(function(){ if (!src && actx.state !== 'running') hint.hidden = false; }, 700);
-  }
+  // play straight away where the browser allows it; otherwise it waits for the first touch or click, so say so
+  if (window.matchMedia && !matchMedia('(pointer: coarse)').matches) hint.textContent = 'Klik layar untuk mendengar ceritanya';
+  tryStart();
   ['pointerdown', 'pointerup', 'mousedown', 'touchend', 'keydown', 'click'].forEach(function(ev){
     window.addEventListener(ev, unlock, {passive: true});
   });
   document.addEventListener('visibilitychange', function(){
-    if (!document.hidden) markActive();        // back on the page: give the visitor a moment
-    if (!actx || !src) return;
-    if (document.hidden) actx.suspend(); else actx.resume();
+    if (document.hidden){
+      if (berbunyi && !suara.ended){ suara.pause(); hilangSejak = performance.now(); }
+      return;
+    }
+    markActive();                              // back on the page: give the visitor a moment
+    if (hilangSejak){
+      perfStart += performance.now() - hilangSejak;
+      hilangSejak = 0;
+      suara.play().catch(function(){});
+    }
   });
 
   /* ---------- entering the website: by hand at any time with Masuk Webset, or by itself once the
@@ -316,8 +309,9 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     if (!inFrame) return;
     setTimeout(function(){          // still here: a preview frame blocked it, so keep the story on repeat
       autoEnter = false; entering = false;
-      if (src && storyTime() < CYCLE) src.loop = true;
-      else { src = null; audioBase = null; perfStart = performance.now(); tryStart(); }
+      suara.loop = true;
+      if (berbunyi && suara.ended){ suara.currentTime = 0; suara.play().catch(function(){}); perfStart = performance.now(); }
+      else if (!berbunyi) perfStart = performance.now();
       fadeEl.style.transition = 'opacity .6s ease';
       fadeEl.style.opacity = '0';
       countdown.textContent = 'Tekan Masuk Webset untuk lanjut ke website.';
@@ -405,7 +399,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   var keepSmooth = MMX3D.penjagaMulus(function(){ return dpr; }, function(v){ dpr = v; layout(); }, 21);
 
   /* ---------- loop: everything reads the one 25 s clock ---------- */
-  var time = 0, last = performance.now();
+  var time = 0, last = performance.now(), putaran = MMX3D.buatPutaran(reduce ? 0 : 0.6);
   function frame(now){
     keepSmooth(now - last);
     var dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
@@ -417,10 +411,9 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     var prog = s - i;
     A.perbarui(dt, time, prog, i === 0 ? 1 - prog : (i === LAST ? prog : 0));
 
-    // a calm sway while morphing, then each shape rests facing the viewer; the text holds still
+    // every shape keeps turning smoothly; the turn eases to the front for the text, which holds still so it can be read
     var textW = s <= LAST ? Math.max(0, Math.min(1, s - (LAST - 1))) : Math.max(0, 1 - (s - LAST));
-    var idle = reduce ? 0 : Math.sin(time*0.3) * 0.32;
-    A.group.rotation.y = Math.sin(prog * Math.PI) * 0.8 + idle * (1 - textW);
+    A.group.rotation.y = putaran.hitung(dt, i === LAST - 1 && prog > 0, i === LAST && prog === 0, prog);
     A.group.rotation.x = 0.16 * (1 - textW) + (reduce ? 0 : Math.sin(time*0.23) * 0.04);
 
     A.gambar();

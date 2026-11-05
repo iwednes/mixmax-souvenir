@@ -2,8 +2,8 @@
    WEBSITE MIXMAX SOUVENIR — Latar 3D seluruh halaman
    Partikel bergerak dan berubah bentuk sendiri di belakang isi halaman,
    tanpa suara. Kursor membuat butir menghindar dan berwarna; klik membuat riak.
-   Dibuat seringan mungkin: mulai setelah halaman siap, sekitar 30 frame per detik,
-   berhenti sejenak saat menggulir dan pindah halaman, diam di panel admin.
+   Objek berputar terus dengan mulus di semua halaman, dan ikut berputar saat digulir.
+   Mulai setelah halaman siap dan resolusinya turun sendiri bila perangkat kewalahan.
    Bila gagal dimuat, website tetap berjalan seperti biasa.
    ============================================================ */
 (function () {
@@ -15,7 +15,8 @@
   var THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
   var TAHAN = 6, MORF = 2.2;   // detik diam pada satu bentuk; detik perpindahan bentuk
   var JEDA_MULAI = 1200;       // ms setelah halaman siap, supaya tampilan awal tidak terganggu
-  var JEDA_FRAME = 30;         // ms antar-gambar; latar cukup sekitar 30 fps, sisanya untuk halaman
+  var LAJU_PUTAR = 0.6;        // radian per detik: satu putaran penuh sekitar 10 detik
+  var PUTAR_GULIR = 0.0006;    // tambahan putaran per piksel digulir
 
   // Bentuk pembuka tiap halaman: 0 lampu, 1 kotak, 2 handuk, 3 mug, 4 tumbler, 5 hati, 6 tulisan.
   var BENTUK_HALAMAN = { beranda: 0, produk: 1, keranjang: 1, nota: 5, testimonial: 5, tentang: 6, login: 0 };
@@ -47,8 +48,8 @@
       });
     } catch (e) { return; }
 
-    var bentuk = [], dari = 0, ke = 0, mulaiMorf = -1, gantiPada = TAHAN, antre = null, waktu = 0, tahanSampai = 0;
-    var vAdmin = document.getElementById('vAdmin');
+    var bentuk = [], dari = 0, ke = 0, mulaiMorf = -1, gantiPada = TAHAN, antre = null, waktu = 0;
+    var TULISAN = MMX3D.JUMLAH - 1, putaran = MMX3D.buatPutaran(LAJU_PUTAR);
 
     function pindahKe(k) {                     // mulai perpindahan bentuk; bentuk yang belum siap dilewati dulu
       if (k === ke || !bentuk[k]) return;
@@ -71,7 +72,6 @@
       if (k === undefined || !bentuk[k]) return;
       if (diam) tampilkanLangsung(k); else pindahKe(k);
     }
-    function istirahat(ms) { tahanSampai = performance.now() + ms; }
 
     /* ---------- Tata letak: objek di sisi kanan layar lebar, di tengah pada ponsel ---------- */
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5), lebarLalu = 0, tinggiLalu = 0;
@@ -96,17 +96,14 @@
     window.addEventListener('resize', function () {
       tata(false);
       if (diam && bentuk[ke]) tampilkanLangsung(ke);
-      else if (!vAdmin.hidden) A.gambar();      // putaran utama diam di admin: gambar ulang setelah kanvas berubah ukuran
     });
-    var jagaMulus = MMX3D.penjagaMulus(function () { return dpr; }, function (v) { dpr = v; tata(true); }, 45);
+    var jagaMulus = MMX3D.penjagaMulus(function () { return dpr; }, function (v) { dpr = v; tata(true); }, 24);
 
     /* ---------- Putaran utama ---------- */
     var lalu = performance.now();
     function bingkai(now) {
       requestAnimationFrame(bingkai);
-      if (now - lalu < JEDA_FRAME) return;
-      // saat menggulir, pindah halaman, jendela modal, atau di panel admin: tenaga untuk halaman
-      if (kanvas.classList.contains('siap') && (now < tahanSampai || !vAdmin.hidden || document.body.classList.contains('modal-terbuka'))) { lalu = now; return; }
+      if (document.body.classList.contains('modal-terbuka') && kanvas.classList.contains('siap')) { lalu = now; return; }   // tertutup jendela modal
       var ms = now - lalu;
       lalu = now;
       jagaMulus(ms);
@@ -127,17 +124,18 @@
       }
 
       A.perbarui(dt, waktu, prog, (ke === 0 ? prog : 0) + (dari === 0 && ke !== 0 ? 1 - prog : 0));
-      A.group.rotation.y = Math.sin(prog * Math.PI) * 0.8 + Math.sin(waktu * 0.3) * 0.32;
+      A.group.rotation.y = putaran.hitung(dt, ke === TULISAN && mulaiMorf >= 0, ke === TULISAN && mulaiMorf < 0, prog);
       A.group.rotation.x = 0.16 + Math.sin(waktu * 0.23) * 0.04;
       A.gambar();
       kanvas.classList.add('siap');
     }
 
-    window.addEventListener('scroll', function () { istirahat(160); }, { passive: true });
-    window.addEventListener('mmx-rute', function (e) {
-      istirahat(220);
-      bentukHalaman(e.detail);
-    });
+    var gulirLalu = window.scrollY;
+    window.addEventListener('scroll', function () {
+      if (ke !== TULISAN) putaran.tambah((window.scrollY - gulirLalu) * PUTAR_GULIR);
+      gulirLalu = window.scrollY;
+    }, { passive: true });
+    window.addEventListener('mmx-rute', function (e) { bentukHalaman(e.detail); });
     MMX3D.muatBentuk(function (k, s) {
       bentuk[k] = s;
       if (k === 0) {

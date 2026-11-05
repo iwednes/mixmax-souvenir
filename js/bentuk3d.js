@@ -307,6 +307,27 @@
     };
   }
 
+  /**
+   * Putaran sumbu Y yang terus berjalan. Saat berpindah ke tulisan, putaran dibawa mulus sampai menghadap
+   * depan supaya terbaca; selama bentuk tulisan diam, lalu berputar lagi begitu berganti bentuk.
+   */
+  function buatPutaran(kecepatan) {
+    var sudut = 0, awal = null, akhir = 0;
+    return {
+      tambah: function (rad) { sudut += rad; },
+      hitung: function (dt, menujuTulisan, diTulisan, prog) {
+        if (menujuTulisan) {
+          if (awal === null) { awal = sudut; akhir = Math.ceil(sudut / TAU + 0.15) * TAU; }
+          sudut = awal + (akhir - awal) * prog;
+        } else {
+          awal = null;
+          if (!diTulisan) sudut += dt * kecepatan;
+        }
+        return sudut;
+      }
+    };
+  }
+
   /* ---------- Shader titik ---------- */
   var VERTEX = [
     'attribute vec3 aTo; attribute float aRand; attribute float aGlow0; attribute float aGlow1; attribute float aTint;',
@@ -550,5 +571,5 @@
     };
   }
 
-  root.MMX3D = { JUMLAH: JUMLAH, buatLampu: buatLampu, muatBentuk: muatBentuk, penjagaMulus: penjagaMulus, buatAdegan: buatAdegan };
+  root.MMX3D = { JUMLAH: JUMLAH, buatLampu: buatLampu, muatBentuk: muatBentuk, penjagaMulus: penjagaMulus, buatPutaran: buatPutaran, buatAdegan: buatAdegan };
 })(self);
