@@ -32,7 +32,7 @@
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   color-scheme:light;
 }
-html,body{height:100%;overflow:hidden}
+html,body{height:100%;overflow:hidden;touch-action:none;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg)}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55}
@@ -48,9 +48,9 @@ main{position:fixed;inset:0;z-index:2;overflow:hidden;
   letter-spacing:-.005em;margin:0;text-wrap:balance}
 h1 em,h2 em{font-style:italic;color:var(--bronze)}
 .lede{max-width:44ch;margin:0;font-size:16px;line-height:1.6;color:var(--ink-700)}
-.hint{font-family:var(--mono);font-weight:700;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--bronze);
-  display:flex;gap:10px;align-items:center}
-.hint i{display:block;width:28px;height:1px;background:currentColor;flex:none}
+.hint{position:fixed;z-index:4;left:50%;transform:translateX(-50%);top:calc(74px + env(safe-area-inset-top,0px));white-space:nowrap;
+  pointer-events:none;font-family:var(--mono);font-weight:700;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--bronze);
+  padding:7px 14px;background:var(--card);border:1px solid var(--line);border-radius:999px;box-shadow:var(--sh-sm)}
 .nogl{margin:0;font-size:14px;line-height:1.55;color:var(--ink-700);padding:10px 12px;border:1px dashed var(--line-kuat);border-radius:8px}
 
 .panel{position:relative;overflow:hidden;width:100%;max-width:400px;display:grid;gap:14px;padding:30px 30px 28px;
@@ -102,6 +102,8 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   <a class="btn-masuk" href="index.html?dari=cover" data-masuk>Masuk Webset <span aria-hidden="true">→</span></a>
 </header>
 
+<div class="hint" id="hint" hidden>Ketuk layar untuk mendengar ceritanya</div>
+
 <div class="fade" id="fade" aria-hidden="true"><span>Membuka website Mixmax Souvenir…</span></div>
 
 <main>
@@ -111,7 +113,6 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
         <h1>Semua berawal dari <em>satu ide.</em></h1>
         <p class="lede">Acara kantor, pernikahan, ulang tahun, atau perpisahan rekan kerja. Ceritakan momennya kepada kami, dan bersama-sama kita temukan souvenir yang paling pas untuk mengenangnya.</p>
         <p class="nogl" id="noglNote" hidden>Browser ini tidak menjalankan WebGL, jadi partikelnya tidak tampil. Ceritanya tetap bisa dibaca di sini.</p>
-        <div class="hint" id="hint" hidden><i></i>Ketuk layar untuk mendengar ceritanya</div>
       </div>
     </section>
 
@@ -176,7 +177,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   var IDLE = 5, FADE = 1.4;        // seconds without activity that count as idle; length of the fade before leaving
   var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var small = Math.min(innerWidth, innerHeight) < 700;
-  var N = small ? 7000 : 14000;
+  var N = 14000;                   // the same particles on every screen; slow phones lower the resolution instead (keepSmooth)
   function easeInOut(t){ t = Math.max(0, Math.min(1, t)); return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2; }
 
   /* ---------- timeline: when each product glides in, matched to the narration in cerita.mp3 ----------
@@ -242,6 +243,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
       return;
     }
     if (actx.state !== 'running'){ hint.hidden = false; return; }
+    if (storyTime() > 0.6) softRestart();
     src = actx.createBufferSource();
     src.buffer = story; src.loop = !autoEnter; src.loopStart = 0; src.loopEnd = CYCLE;
     src.connect(actx.destination);
@@ -249,6 +251,15 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     src.start(when, 0);
     audioBase = when;              // the story restarts from the first line together with the sound
     hint.hidden = true;
+  }
+  function softRestart(){          // sound arrived late, so the story jumps back to its start: cover the jump with a short fade-in
+    [document.getElementById('gl'), document.querySelector('main')].forEach(function(el){
+      el.style.transition = 'none';
+      el.style.opacity = '0';
+      void el.offsetWidth;
+      el.style.transition = 'opacity .5s ease';
+      el.style.opacity = '1';
+    });
   }
   function unlock(e){
     if (!actx || src) return;
@@ -264,8 +275,11 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     var first = actx.resume();                      // play straight away where the browser allows it
     if (first && first.then) first.then(tryStart, function(){});
     actx.onstatechange = tryStart;
+    // browsers hold sound back until the first touch or click on a page: say so while it lasts
+    if (window.matchMedia && !matchMedia('(pointer: coarse)').matches) hint.textContent = 'Klik layar untuk mendengar ceritanya';
+    setTimeout(function(){ if (!src && actx.state !== 'running') hint.hidden = false; }, 700);
   }
-  ['pointerdown', 'touchend', 'keydown', 'click'].forEach(function(ev){
+  ['pointerdown', 'pointerup', 'mousedown', 'touchend', 'keydown', 'click'].forEach(function(ev){
     window.addEventListener(ev, unlock, {passive: true});
   });
   document.addEventListener('visibilitychange', function(){
@@ -316,8 +330,9 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   function tickEnter(){
     if (!autoEnter || entering) return;
     var t = storyTime(), wait = Math.max(ENTER_AT - t, IDLE - (performance.now() - lastActive) / 1000);
-    countdown.hidden = t < ENTER_AT - IDLE;
-    if (!countdown.hidden){
+    var hide = t < ENTER_AT - IDLE;
+    if (countdown.hidden !== hide) countdown.hidden = hide;
+    if (!hide){
       var pesan = 'Masuk otomatis ke website dalam ' + Math.max(1, Math.ceil(wait)) + ' detik';
       if (countdown.textContent !== pesan) countdown.textContent = pesan;
     }
@@ -333,7 +348,8 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
 
   var renderer;
   try {
-    renderer = new THREE.WebGLRenderer({canvas: document.getElementById('gl'), antialias: true, alpha: true});
+    renderer = new THREE.WebGLRenderer({canvas: document.getElementById('gl'), antialias: true, alpha: false, powerPreference: 'high-performance'});
+    renderer.setClearColor(0xFDF9F3, 1);
   } catch (e) { fallback(); return; }
 
   /* ---------- shapes: N points each, point = [x, y, z, glow]; glow 1 = self-lit ---------- */
@@ -592,7 +608,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     'attribute vec3 aTo; attribute float aRand; attribute float aGlow0; attribute float aGlow1; attribute float aHue;',
     'uniform float uProg, uTime, uScale, uSize, uMotion, uMouseOn, uBurst;',
     'uniform vec2 uMouse;',
-    'varying float vDepth; varying float vTone; varying float vGlow; varying float vHue;',
+    'varying float vDepth; varying float vTone; varying float vGlow; varying float vHue; varying float vSize;',
     'void main(){',
     '  float d = aRand * 0.35;',
     '  float p = smoothstep(d, d + 0.65, uProg);',
@@ -615,13 +631,13 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     '    gl_Position.z = c2.z / c2.w * gl_Position.w;',
     '  }',
     '  gl_PointSize = uSize * uScale * (0.65 + aRand * 0.7) * (1.0 + 0.25 * glow) / -mv.z;',
-    '  vDepth = -mv.z; vTone = aRand; vGlow = glow;',
+    '  vDepth = -mv.z; vTone = aRand; vGlow = glow; vSize = gl_PointSize;',
     '  vHue = aHue + aRand * 0.05 + uTime * uMotion * 0.035;',
     '}'
   ].join('\n');
   var particleFS = [
     'uniform vec3 uFog, uWarm; uniform float uFogNear, uFogFar, uPulse;',
-    'varying float vDepth; varying float vTone; varying float vGlow; varying float vHue;',
+    'varying float vDepth; varying float vTone; varying float vGlow; varying float vHue; varying float vSize;',
     'vec3 hsv2rgb(vec3 c){',
     '  vec3 p = abs(fract(c.xxx + vec3(0.0, 2.0/3.0, 1.0/3.0)) * 6.0 - 3.0);',
     '  return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);',
@@ -637,13 +653,14 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
     '  col += rim * 0.05;',
     '  col = mix(col, uWarm * (0.82 + 0.3 * diff) * uPulse, vGlow);',
     '  float fog = smoothstep(uFogNear, uFogFar, vDepth) * (1.0 - 0.75 * vGlow);',
-    '  gl_FragColor = vec4(mix(col, uFog, fog * 0.78), 1.0);',
+    '  float edge = clamp((1.0 - sqrt(r2)) * vSize * 0.5, 0.0, 1.0);',   // one-pixel soft rim, smoothed by alphaToCoverage
+    '  gl_FragColor = vec4(mix(col, uFog, fog * 0.78), edge);',
     '}'
   ].join('\n');
 
   function particleMaterial(size, burst){
     return new THREE.ShaderMaterial({
-      vertexShader: particleVS, fragmentShader: particleFS,
+      vertexShader: particleVS, fragmentShader: particleFS, alphaToCoverage: true,
       uniforms: {
         uProg:{value:0}, uTime:{value:0}, uScale:{value:1}, uSize:{value:size}, uMotion:{value: reduce ? 0 : 1},
         uMouse:{value:new THREE.Vector2(99,99)}, uMouseOn:{value:0}, uBurst:{value:burst},
@@ -668,7 +685,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   var hueArr = new Float32Array(N);
   for (var hi = 0; hi < N; hi++) hueArr[hi] = hi / N;
   geo.setAttribute('aHue', new THREE.BufferAttribute(hueArr, 1));
-  var mat = particleMaterial(small ? 0.056 : 0.046, 1);
+  var mat = particleMaterial(0.046, 1);
   var points = new THREE.Points(geo, mat);
   points.frustumCulled = false;
   group.add(points);
@@ -705,7 +722,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   ringGeo.setAttribute('aGlow0', zeroAttr(ringN));
   ringGeo.setAttribute('aGlow1', zeroAttr(ringN));
   ringGeo.setAttribute('aHue', new THREE.BufferAttribute(new Float32Array(ringHue), 1));
-  var ringMat = particleMaterial(small ? 0.04 : 0.032, 0);
+  var ringMat = particleMaterial(0.032, 0);
   var rings = new THREE.Points(ringGeo, ringMat);
   rings.frustumCulled = false;
   scene.add(rings);
@@ -763,10 +780,11 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
 
   /* ---------- layout: keep the object in the space the cards leave free ---------- */
   var W = 1, H = 1, dist = 9, offX = 0, offY = 0;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
   var firstPanel = document.querySelector('.panel');
   function layout(){
     W = window.innerWidth; H = window.innerHeight;
-    var aspect = W / H, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var aspect = W / H;
     renderer.setPixelRatio(dpr);
     renderer.setSize(W, H, false);
     camera.aspect = aspect;
@@ -813,9 +831,32 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   window.addEventListener('blur', off);
   window.addEventListener('pointerup', function(e){ if (e.pointerType !== 'mouse') off(); });
 
+  /* ---------- keep it smooth: if frames run slow, lower the render resolution one step at a time ---------- */
+  var skipFrames = 30, slowCount = 0, slowSum = 0, tried = null, tuning = true;
+  function keepSmooth(ms){
+    if (!tuning || ms > 200) return;            // 200 ms+ is a tab switch, not a slow frame
+    if (skipFrames > 0){ skipFrames--; return; }
+    slowSum += ms;
+    if (++slowCount < 45) return;
+    var avg = slowSum / slowCount;
+    slowCount = 0; slowSum = 0;
+    if (tried && avg > tried.ms * 0.9){         // no gain (a 30 fps battery-saver cap, say): undo the step and stop
+      dpr = tried.dpr; tuning = false; layout();
+      return;
+    }
+    tried = null;
+    if (avg > 21 && dpr > 1){                   // under about 47 frames per second
+      tried = {dpr: dpr, ms: avg};
+      dpr = Math.max(1, dpr - 0.35);
+      skipFrames = 20;
+      layout();
+    }
+  }
+
   /* ---------- loop: everything reads the one 25 s clock ---------- */
   var time = 0, last = performance.now();
   function frame(now){
+    keepSmooth(now - last);
     var dt = Math.min(0.05, (now - last) / 1000); last = now; time += dt;
     var ct = cycleTime(), s = stageAt(ct);
     placeReel(s);
