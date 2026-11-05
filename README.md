@@ -13,6 +13,7 @@ js/config.js      ← GAS_URL: alamat Web App Apps Script (/exec)  ← satu-satu
 js/app.js         ← logika halaman, keranjang, form, panel admin
 js/latar3d.js     ← latar 3D yang bergerak di semua halaman website
 js/bentuk3d.js    ← bentuk & shader partikel, dipakai cover dan latar 3D
+js/pramuat.js     ← menyiapkan isi website selagi cover tampil
 ```
 
 ## Konfigurasi

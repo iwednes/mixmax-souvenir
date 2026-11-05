@@ -3,13 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>
+  // alamat tetap bersih saat cover tampil: tanpa /cover.html
+  try { history.replaceState(null, '', './'); } catch (e) {}
+</script>
 <title>Mixmax Souvenir</title>
 <meta name="description" content="Souvenir dan merchandise kustom untuk perusahaan, seminar, dan acara. Pilih produk, dapatkan nota pesanan langsung, DP 50% via WhatsApp.">
 <meta name="theme-color" content="#FDF9F3">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231C1917'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='21' font-weight='600' fill='%23FDF9F3' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
 <style>
 /* Cover sebelum masuk website: cerita 25 detik. Fixed WebGL scene behind; a fixed viewport whose reel of white Mixmax cards slides
    one card per product, driven by the same clock as the soundtrack. Tokens copied from css/style.css. */
@@ -102,7 +106,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
 
 <header class="hud-top">
   <div class="mark"><strong>Mixmax Souvenir</strong><small>Ora et labora</small></div>
-  <a class="btn-masuk" href="index.html?dari=cover" data-masuk>Masuk Webset <span aria-hidden="true">→</span></a>
+  <a class="btn-masuk" href="./?dari=cover" data-masuk>Masuk Webset <span aria-hidden="true">→</span></a>
 </header>
 
 <div class="hint" id="hint" hidden>Ketuk layar untuk mendengar ceritanya</div>
@@ -164,7 +168,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
         <span class="big" aria-hidden="true">07</span>
         <h2>Dari ide sampai ke hati, <em>sejak 2010.</em></h2>
         <p>Setiap pesanan kami kerjakan dengan prinsip <em>ora et labora</em>: bekerja dengan sungguh-sungguh dan penuh doa. Ceritakan ide Anda hari ini, biar kami yang mewujudkannya.</p>
-        <a class="cta" href="index.html?dari=cover" data-masuk>Kunjungi Mixmax Souvenir <span aria-hidden="true">→</span></a>
+        <a class="cta" href="./?dari=cover" data-masuk>Kunjungi Mixmax Souvenir <span aria-hidden="true">→</span></a>
         <p class="countdown" id="countdown" aria-live="polite" hidden></p>
       </article>
     </section>
@@ -173,6 +177,8 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="js/bentuk3d.js"></script>
+<script src="js/config.js"></script>
+<script src="js/pramuat.js"></script>
 <script>
 (function(){
   var COUNT = 7, CYCLE = 25;
@@ -292,7 +298,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
 
   /* ---------- entering the website: by hand at any time with Masuk Webset, or by itself once the
      25 s story is over and the visitor has been idle for IDLE seconds ---------- */
-  var ENTER_URL = 'index.html?dari=cover';
+  var ENTER_URL = location.protocol === 'file:' ? 'index.html?dari=cover' : './?dari=cover';
   var countdown = document.getElementById('countdown'), fadeEl = document.getElementById('fade');
   var inFrame = window.top !== window.self;
   var lastActive = -Infinity;
@@ -396,7 +402,7 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   }
   layout();
   window.addEventListener('resize', layout);
-  var keepSmooth = MMX3D.penjagaMulus(function(){ return dpr; }, function(v){ dpr = v; layout(); });
+  var keepSmooth = MMX3D.penjagaMulus(function(){ return dpr; }, function(v){ dpr = v; layout(); }, 21);
 
   /* ---------- loop: everything reads the one 25 s clock ---------- */
   var time = 0, last = performance.now();

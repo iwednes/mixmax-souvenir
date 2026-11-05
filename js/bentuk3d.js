@@ -234,19 +234,26 @@
   /* ---------- Berjalan sebagai Web Worker: hitung bentuk lalu kirim ke halaman ---------- */
   if (typeof document === 'undefined') {
     var kirim = function (k, s) { root.postMessage({ k: k, pos: s.pos, glow: s.glow }, [s.pos.buffer, s.glow.buffer]); };
-    root.onmessage = function (e) { kirim(TEKS, pack(textPoints(e.data))); };
-    RESEP.forEach(function (f, i) { kirim(i + 1, pack(f())); });
+    root.onmessage = function (e) {
+      if (e.data.lampu === undefined) { kirim(TEKS, pack(textPoints(e.data))); return; }
+      if (e.data.lampu) kirim(0, pack(makeBulb()));
+      RESEP.forEach(function (f, i) { kirim(i + 1, pack(f())); });
+    };
     return;
   }
 
   function buatLampu() { return pack(makeBulb()); }
 
-  /** Bentuk 1-6 datang satu per satu lewat onBentuk(k, bentuk), dari worker atau, bila tidak ada, dari halaman ini. */
-  function muatBentuk(onBentuk) {
-    var ada = {}, worker = null, cand = null;
+  /**
+   * Bentuk datang satu per satu lewat onBentuk(k, bentuk), dari worker atau, bila tidak ada, dari halaman ini.
+   * opsi.lampu: lampu ikut dihitung di worker (cover membuatnya sendiri untuk gambar pertama).
+   */
+  function muatBentuk(onBentuk, opsi) {
+    var ada = {}, worker = null, cand = null, lampu = !!(opsi && opsi.lampu);
     function terima(k, s) { ada[k] = true; onBentuk(k, s); }
     function diSini() {
       if (worker) { worker.terminate(); worker = null; }
+      if (lampu && !ada[0]) terima(0, buatLampu());
       RESEP.forEach(function (f, i) { if (!ada[i + 1]) terima(i + 1, pack(f())); });
       if (cand) terima(TEKS, pack(textPoints(cand)));
     }
@@ -257,6 +264,7 @@
         if (e.data.k === TEKS) { worker.terminate(); worker = null; }
       };
       worker.onerror = diSini;
+      worker.postMessage({ lampu: lampu });
     } catch (e) { worker = null; diSini(); }
     function teks() {
       var c = textCandidates();
@@ -272,8 +280,11 @@
     } else teks();
   }
 
-  /** Bila gambar tersendat, resolusi diturunkan selangkah demi selangkah. Mengembalikan fungsi yang dipanggil tiap frame. */
-  function penjagaMulus(ambil, pasang) {
+  /**
+   * Bila gambar tersendat, resolusi diturunkan selangkah demi selangkah. Mengembalikan fungsi yang dipanggil tiap frame.
+   * batasMs: jeda rata-rata antar-frame yang dianggap tersendat.
+   */
+  function penjagaMulus(ambil, pasang, batasMs) {
     var lewati = 30, n = 0, jumlah = 0, coba = null, aktif = true;
     return function (ms) {
       if (!aktif || ms > 200) return;            // di atas 200 ms berarti pindah tab, bukan frame lambat
@@ -288,7 +299,7 @@
         return;
       }
       coba = null;
-      if (rata > 21 && ambil() > 1) {            // di bawah sekitar 47 frame per detik
+      if (rata > batasMs && ambil() > 1) {
         coba = { dpr: ambil(), ms: rata };
         lewati = 20;
         pasang(Math.max(1, ambil() - 0.35));

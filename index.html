@@ -7,11 +7,10 @@
     // Kunjungan baru melihat cover 3D dulu, sekali per sesi browser. ?dari=cover = baru saja melewati cover.
     (function () {
       try {
-        if (/[?&]dari=cover/.test(location.search)) {
-          sessionStorage.setItem('mmx_cover', '1');
-          history.replaceState(null, '', location.pathname);
-          return;
-        }
+        var dariCover = /[?&]dari=cover/.test(location.search);
+        if (dariCover) sessionStorage.setItem('mmx_cover', '1');
+        // alamat selalu bersih: tanpa index.html dan tanpa ?dari=cover
+        if (dariCover || /\/index\.html$/.test(location.pathname)) history.replaceState(null, '', location.pathname.replace(/index\.html$/, ''));
         if (sessionStorage.getItem('mmx_cover')) return;
       } catch (e) { return; }
       location.replace('cover.html');

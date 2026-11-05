@@ -747,6 +747,10 @@
   }
 
   function renderKatalog() {
+    // Kembali ke Produk tanpa perubahan apa pun: kartu lama dipakai lagi, foto tidak berkedip.
+    const kunci = [S.kategori, S.urut, JSON.stringify(S.qty), JSON.stringify(S.qtyErr)].join('|');
+    if (S.sudahRender.katalog === kunci) return;
+    S.sudahRender.katalog = kunci;
     const produk = S.data.produk || [];
     const hitung = { Semua: produk.length };
     const kat = ['Semua'];
@@ -1413,8 +1417,9 @@
       const res = await adminPanggil.apply(null, [fnServer].concat(args || []));
       if (seq !== ADM.seq[kunci]) return;
       if (res.success) {
+        const sama = !!ADM.cache[kunci] && JSON.stringify(ADM.cache[kunci]) === JSON.stringify(res.data);
         ADM.cache[kunci] = res.data;
-        render(res.data, false);
+        if (!sama) render(res.data, false);
         sinkron('Diperbarui ' + jamSekarang());
       } else {
         toast(res.message, 'err');
@@ -1435,9 +1440,13 @@
           if (res && res.success && !ADM.cache[kunci]) ADM.cache[kunci] = res.data;
         }).catch(function () { /* abaikan */ });
       };
+      isi(kunciLaporan(), 'adminLaporan', [ADM.periode, false]);
       isi(kunciPsn, 'adminPesanan', [ADM.psn]);
       isi('produk', 'adminProduk', []);
+      isi('banner', 'adminBanner', []);
       isi('pengaturan', 'adminPengaturan', []);
+      isi(kunciTsa(), 'adminTestimoni', [{ cari: ADM.tsa.cari, halaman: ADM.tsa.halaman }]);
+      muatChartJs().catch(function () { /* grafik mencoba lagi saat dibuka */ });
     }, 1200);
   }
 
