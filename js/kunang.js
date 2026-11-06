@@ -1,5 +1,5 @@
 /* ============================================================
-   WEBSITE MIXMAX SOUVENIR — Kunang-kunang seluruh halaman
+   WEBSITE MIXMAX SOUVENIR — Kunang-kunang seluruh halaman, termasuk cover
    Bola cahaya melayang ke kanan-kiri, berkelip, punya kedalaman 3D, dan menghindar
    dari kursor. Di bidang gelap (banner Beranda, menu samping admin) menyala terang;
    di latar krem berpendar emas.
@@ -11,7 +11,7 @@
 (function () {
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (navigator.connection && navigator.connection.saveData) return;
-  var latar3d = document.getElementById('latar3d');
+  var latar3d = document.getElementById('latar3d') || document.getElementById('gl');   // gl: kanvas 3D di cover
   if (!latar3d) return;
 
   var kecil = window.innerWidth < 760;

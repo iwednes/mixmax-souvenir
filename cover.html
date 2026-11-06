@@ -41,6 +41,7 @@ html{background:var(--bg)}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55}
 #gl{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
+.kunang-latar{position:fixed;top:0;left:0;z-index:1;display:block;width:100%;height:100vh;height:100lvh;pointer-events:none}
 
 main{position:fixed;inset:0;z-index:2;overflow:hidden;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -422,5 +423,6 @@ h1 em,h2 em{font-style:italic;color:var(--bronze)}
   requestAnimationFrame(frame);
 })();
 </script>
+<script src="js/kunang.js"></script>
 
 </body></html>
