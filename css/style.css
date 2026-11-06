@@ -31,6 +31,8 @@ body.modal-terbuka { overflow: hidden; }
 body.ada-bar { padding-bottom: 96px; }
 #latar3d { position: fixed; top: 0; left: 0; z-index: -1; display: block; width: 100%; height: 100vh; height: 100lvh; pointer-events: none; opacity: 0; transition: opacity 900ms ease; }
 #latar3d.siap { opacity: 1; }
+.kunang-latar { position: fixed; top: 0; left: 0; z-index: -1; display: block; width: 100%; height: 100vh; height: 100lvh; pointer-events: none; }
+.kunang-hero { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; pointer-events: none; }
 ::selection { background: var(--bronze-line); color: var(--ink); }
 img { max-width: 100%; display: block; }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -257,11 +259,13 @@ body.ada-bar .wa-float { bottom: 100px; }
 .banner { position: relative; isolation: isolate; width: 100%; margin-top: 16px; aspect-ratio: 12 / 5; min-height: 440px; max-height: 600px; overflow: hidden; border-radius: var(--r3); background: linear-gradient(145deg, #1C1917 0%, #292524 60%, #1E2621 100%); box-shadow: var(--sh-lg); }
 .banner::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 4% 0%, rgba(140, 107, 62, 0.24), transparent 42%), radial-gradient(circle at 96% 100%, rgba(38, 78, 60, 0.34), transparent 46%); pointer-events: none; }
 .banner-track { position: absolute; inset: 0; }
-.slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 40px 96px; opacity: 0; visibility: hidden; transition: opacity 300ms ease, visibility 0s linear 300ms; }
-.slide.aktif { opacity: 1; visibility: visible; transition: opacity 300ms ease; }
+.slide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 40px 96px; visibility: hidden; transition: visibility 0s linear 300ms; }
+.slide.aktif { visibility: visible; transition: none; }
+.slide > * { opacity: 0; transition: opacity 300ms ease; }   /* pudar per bagian, supaya kartu tetap di atas kunang-kunang saat slide berganti */
+.slide.aktif > * { opacity: 1; }
 .slide-bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
 .slide-overlay { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(28, 25, 23, 0.30) 0%, rgba(28, 25, 23, 0.62) 100%); }
-.slide-card { position: relative; max-width: 660px; width: 100%; padding: 36px 44px; background: rgba(253, 249, 243, 0.97); border: 1px solid var(--line); border-radius: var(--r2); box-shadow: var(--sh-lg); display: flex; flex-direction: column; gap: 14px; }
+.slide-card { position: relative; z-index: 3; max-width: 660px; width: 100%; padding: 36px 44px; background: rgba(253, 249, 243, 0.97); border: 1px solid var(--line); border-radius: var(--r2); box-shadow: var(--sh-lg); display: flex; flex-direction: column; gap: 14px; }
 .slide-judul { font: italic 400 clamp(30px, 3.4vw + 6px, 50px)/1.08 var(--serif); letter-spacing: -0.01em; color: var(--ink); overflow-wrap: anywhere; }
 .slide-sub { color: var(--ink2); font-size: 16px; line-height: 26px; }
 .slide-cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
