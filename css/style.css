@@ -33,6 +33,8 @@ body.ada-bar { padding-bottom: 96px; }
 #latar3d.siap { opacity: 1; }
 .kunang-latar { position: fixed; top: 0; left: 0; z-index: -1; display: block; width: 100%; height: 100vh; height: 100lvh; pointer-events: none; }
 .kunang-hero { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; pointer-events: none; }
+.kunang-sisi { position: sticky; top: 0; z-index: 0; flex: none; display: block; width: 100%; height: 100vh; height: 100dvh; margin-bottom: -100vh; margin-bottom: -100dvh; pointer-events: none; }
+.adm-brand, .adm-nav, .adm-sesi { position: relative; z-index: 1; }
 ::selection { background: var(--bronze-line); color: var(--ink); }
 img { max-width: 100%; display: block; }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -740,7 +742,7 @@ body.ada-bar .wa-float { bottom: 100px; }
 /* ---------- Cetak (hanya kertas nota) ---------- */
 @media print {
   html, body { background: #FFFFFF; padding: 0 !important; }
-  #latar3d { display: none; }
+  #latar3d, .kunang-latar, .kunang-hero, .kunang-sisi { display: none; }
   body.sedang-cetak * { visibility: hidden; }
   body.sedang-cetak .target-cetak, body.sedang-cetak .target-cetak * { visibility: visible; }
   body.sedang-cetak .target-cetak { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: 0; padding: 0; }

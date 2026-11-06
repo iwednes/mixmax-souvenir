@@ -20,7 +20,7 @@
   }
 
   function berkas() {
-    ['./', 'css/style.css', 'js/app.js', 'js/latar3d.js'].forEach(function (u) {
+    ['./', 'css/style.css', 'js/app.js', 'js/latar3d.js', 'js/kunang.js'].forEach(function (u) {
       fetch(u).catch(function () { /* abaikan */ });
     });
     var l = document.createElement('link');

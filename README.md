@@ -14,7 +14,7 @@ js/app.js         ← logika halaman, keranjang, form, panel admin
 js/latar3d.js     ← latar 3D yang bergerak di semua halaman website
 js/bentuk3d.js    ← bentuk & shader partikel, dipakai cover dan latar 3D
 js/pramuat.js     ← menyiapkan isi website selagi cover tampil
-js/kunang.js      ← kunang-kunang di halaman Beranda (uji coba)
+js/kunang.js      ← kunang-kunang di semua halaman, termasuk admin
 ```
 
 ## Konfigurasi

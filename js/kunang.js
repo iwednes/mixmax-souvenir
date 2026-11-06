@@ -1,18 +1,22 @@
 /* ============================================================
-   WEBSITE MIXMAX SOUVENIR — Kunang-kunang halaman Beranda (uji coba)
+   WEBSITE MIXMAX SOUVENIR — Kunang-kunang seluruh halaman
    Bola cahaya melayang ke kanan-kiri, berkelip, punya kedalaman 3D, dan menghindar
-   dari kursor. Di banner gelap menyala terang; di latar krem berpendar emas.
-   Canvas 2D supaya ringan, dan hanya berjalan selama Beranda terbuka.
-   Untuk mencabutnya: hapus berkas ini dan barisnya di index.html.
+   dari kursor. Di bidang gelap (banner Beranda, menu samping admin) menyala terang;
+   di latar krem berpendar emas.
+   Satu putaran gambar berjalan terus di semua halaman, jadi pindah halaman tidak
+   membuatnya berhenti atau mulai ulang. Bidang yang tidak tampak dilewati, dan
+   jumlah bola turun sendiri bila perangkat kewalahan.
+   Canvas 2D supaya ringan. Untuk mencabutnya: hapus berkas ini dan barisnya di index.html.
    ============================================================ */
 (function () {
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (navigator.connection && navigator.connection.saveData) return;
-  var banner = document.getElementById('banner'), vAdmin = document.getElementById('vAdmin');
-  if (!banner) return;
+  var latar3d = document.getElementById('latar3d');
+  if (!latar3d) return;
 
   var kecil = window.innerWidth < 760;
   var JANGKAU = 150;                 // px: jarak kursor mulai mendorong bola
+  var LONCAT_GULIR = 240;            // px per bingkai: lebih dari ini berarti ganti halaman, bukan digulir
 
   /* Satu gambar pendar dipakai ulang oleh semua bola: jauh lebih ringan daripada membuat gradasi tiap frame. */
   function pendar(warnaTengah, warnaTepi, kuat) {
@@ -46,13 +50,12 @@
   }
 
   function buatLapisan(kanvas, opsi) {
-    var L = { kanvas: kanvas, ctx: kanvas.getContext('2d'), w: 1, h: 1, x: 0, y: 0, dpr: 1, tampak: true,
+    var L = { kanvas: kanvas, ctx: kanvas.getContext('2d'), w: 1, h: 1, x: 0, y: 0, dpr: 1, tampak: true, perluUkur: true,
       tambah: opsi.tambah, ukur: opsi.ukur, gulir: opsi.gulir, bola: [], debu: [] };
     L.ukurUlang = function () {
       var r = kanvas.getBoundingClientRect();
       L.x = r.left; L.y = r.top;
-      if (!r.width || !r.height) return;
-      if (r.width === L.w && r.height === L.h) return;
+      if (!r.width || !r.height || (r.width === L.w && r.height === L.h)) return;
       var sx = r.width / L.w, sy = r.height / L.h;   // bola ikut menyebar saat ukuran kanvas berubah
       L.bola.concat(L.debu).forEach(function (b) { b.x *= sx; b.y *= sy; });
       L.w = r.width; L.h = r.height;
@@ -60,27 +63,45 @@
       kanvas.width = Math.round(L.w * L.dpr);
       kanvas.height = Math.round(L.h * L.dpr);
     };
-    L.ukurUlang();
     for (var i = 0; i < opsi.bola; i++) L.bola.push(buatBola(L, opsi.sinar));
     for (var j = 0; j < opsi.debu; j++) L.debu.push({ x: acak(0, L.w), y: acak(0, L.h), r: acak(0.5, 1.6), laju: acak(-7, 7), a: acak(0.15, 0.6), p: acak(0, 6.3) });
     return L;
   }
 
-  var kanvasLatar = document.createElement('canvas');
-  kanvasLatar.className = 'kunang-latar';
-  kanvasLatar.setAttribute('aria-hidden', 'true');
-  var latar3d = document.getElementById('latar3d');
+  function buatKanvas(kelas) {
+    var c = document.createElement('canvas');
+    c.className = kelas;
+    c.setAttribute('aria-hidden', 'true');
+    return c;
+  }
+
+  /* Bidang gelap hanya digambar selama benar-benar tampak di layar. */
+  function pantau(L, bidang) {
+    if (window.IntersectionObserver) {
+      L.tampak = false;
+      new IntersectionObserver(function (e) { L.tampak = e[e.length - 1].isIntersecting; }).observe(bidang);
+    }
+    if (window.ResizeObserver) new ResizeObserver(function () { L.perluUkur = true; }).observe(L.kanvas);
+    return L;
+  }
+
+  var kanvasLatar = buatKanvas('kunang-latar');
   latar3d.parentNode.insertBefore(kanvasLatar, latar3d.nextSibling);   // tepat di atas latar 3D, di bawah isi halaman
-  var kanvasHero = document.createElement('canvas');
-  kanvasHero.className = 'kunang-hero';
-  kanvasHero.setAttribute('aria-hidden', 'true');
-  banner.appendChild(kanvasHero);
+  var lapisan = [buatLapisan(kanvasLatar, { tambah: false, ukur: [9, 26], gulir: true, dpr: 1, bola: kecil ? 36 : 70, debu: 0, sinar: SINAR_KREM })];
 
-  var latar = buatLapisan(kanvasLatar, { tambah: false, ukur: [9, 26], gulir: true, dpr: 1, bola: kecil ? 36 : 70, debu: 0, sinar: SINAR_KREM });
-  var hero = buatLapisan(kanvasHero, { tambah: true, ukur: [10, 40], gulir: false, dpr: 1.5, bola: kecil ? 60 : 120, debu: kecil ? 110 : 260, sinar: SINAR_GELAP });
-  var lapisan = [latar, hero];
-
-  if (window.IntersectionObserver) new IntersectionObserver(function (e) { hero.tampak = e[0].isIntersecting; }).observe(banner);
+  var hero = null, banner = document.getElementById('banner');
+  if (banner) {
+    var kanvasHero = buatKanvas('kunang-hero');
+    banner.appendChild(kanvasHero);
+    hero = pantau(buatLapisan(kanvasHero, { tambah: true, ukur: [10, 40], gulir: false, dpr: 1.5, bola: kecil ? 60 : 120, debu: kecil ? 110 : 260, sinar: SINAR_GELAP }), banner);
+    lapisan.push(hero);
+  }
+  var sisiAdmin = document.querySelector('.adm-side');
+  if (sisiAdmin) {
+    var kanvasSisi = buatKanvas('kunang-sisi');
+    sisiAdmin.insertBefore(kanvasSisi, sisiAdmin.firstChild);
+    lapisan.push(pantau(buatLapisan(kanvasSisi, { tambah: true, ukur: [8, 30], gulir: false, dpr: 1.5, bola: kecil ? 24 : 36, debu: kecil ? 40 : 80, sinar: SINAR_GELAP }), sisiAdmin));
+  }
 
   /* ---------- Kursor: bola menghindar, seluruh lapisan sedikit bergeser mengikuti (terasa 3D) ---------- */
   var kx = -9999, ky = -9999, geserX = 0, geserY = 0, geserTX = 0, geserTY = 0;
@@ -90,8 +111,8 @@
     geserTY = ky / window.innerHeight - 0.5;
   }, { passive: true });
   window.addEventListener('pointerdown', function (e) {       // klik: bola di sekitarnya terhambur
-    if (!aktif) return;
     lapisan.forEach(function (L) {
+      if (!L.tampak) return;
       L.bola.forEach(function (b) {
         if (b.px === undefined) return;                       // belum pernah digambar
         var ax = b.px - (e.clientX - L.x), ay = b.py - (e.clientY - L.y), d = Math.sqrt(ax * ax + ay * ay) || 1;
@@ -99,13 +120,30 @@
       });
     });
   }, { passive: true });
-  function ukurSemua() { lapisan.forEach(function (L) { L.ukurUlang(); }); }
-  window.addEventListener('resize', ukurSemua);
-  window.addEventListener('scroll', function () { hero.ukurUlang(); }, { passive: true });
+  window.addEventListener('resize', function () { lapisan.forEach(function (L) { L.perluUkur = true; }); });
+  window.addEventListener('scroll', function () { if (hero) hero.perluUkur = true; }, { passive: true });
+
+  /* Jumlah yang digulir dihitung sendiri: lompatan saat ganti halaman diabaikan, jadi bola tetap di tempatnya. */
+  var gulirLalu = window.scrollY, gulirTotal = 0;
+  function hitungGulir() {
+    var sy = window.scrollY, beda = sy - gulirLalu;
+    gulirLalu = sy;
+    if (Math.abs(beda) < LONCAT_GULIR) gulirTotal += beda;
+  }
+
+  /* Perangkat kewalahan: gambar lebih sedikit bola supaya tetap mulus, lalu naik lagi saat sudah lega. */
+  var porsi = 1, rataMs = 16;
+  function jagaMulus(ms, waktu) {
+    if (ms > 250) return;                 // tab baru kembali dari latar belakang
+    rataMs += (ms - rataMs) * 0.05;
+    if (waktu < 3) return;                // abaikan detik-detik awal saat halaman masih memuat
+    if (rataMs > 26 && porsi > 0.4) { porsi = Math.max(0.4, porsi - 0.15); rataMs = 18; }
+    else if (rataMs < 18 && porsi < 1) porsi = Math.min(1, porsi + 0.001);
+  }
 
   /* ---------- Gambar ---------- */
   function gambarLapisan(L, t, dt) {
-    var g = L.ctx, w = L.w, h = L.h, gulir = L.gulir ? window.scrollY : 0;
+    var g = L.ctx, w = L.w, h = L.h, gulir = L.gulir ? gulirTotal : 0;
     g.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
     g.clearRect(0, 0, w, h);
     g.globalCompositeOperation = L.tambah ? 'lighter' : 'source-over';
@@ -139,50 +177,23 @@
     g.globalCompositeOperation = 'source-over';
   }
 
-  var aktif = false, raf = 0, lalu = 0, waktu = 0;
-
-  /* Perangkat kewalahan: gambar lebih sedikit bola supaya tetap mulus, lalu naik lagi saat sudah lega. */
-  var porsi = 1, rataMs = 16;
-  function jagaMulus(ms) {
-    if (ms > 250) return;                 // tab baru kembali dari latar belakang
-    rataMs += (ms - rataMs) * 0.05;
-    if (waktu < 3) return;                // abaikan detik-detik awal saat halaman masih memuat
-    if (rataMs > 26 && porsi > 0.4) { porsi = Math.max(0.4, porsi - 0.15); rataMs = 18; }
-    else if (rataMs < 18 && porsi < 1) porsi = Math.min(1, porsi + 0.001);
-  }
-
+  var lalu = performance.now(), waktu = 0;
   function langkah(now) {
-    if (!aktif) return;
-    if (!vAdmin.hidden) { henti(); return; }
-    raf = requestAnimationFrame(langkah);
-    if (document.body.classList.contains('modal-terbuka')) { lalu = now; return; }
-    var dt = Math.min(0.05, (now - lalu) / 1000);
-    jagaMulus(now - lalu);
+    requestAnimationFrame(langkah);
+    if (document.body.classList.contains('modal-terbuka')) { lalu = now; return; }   // tertutup jendela modal
+    var ms = now - lalu, dt = Math.min(0.05, ms / 1000);
     lalu = now;
     waktu += dt;
+    jagaMulus(ms, waktu);
+    hitungGulir();
     geserX += (geserTX - geserX) * (1 - Math.exp(-dt * 3));
     geserY += (geserTY - geserY) * (1 - Math.exp(-dt * 3));
-    gambarLapisan(latar, waktu, dt);
-    if (hero.tampak) gambarLapisan(hero, waktu, dt);
+    for (var i = 0; i < lapisan.length; i++) {
+      var L = lapisan[i];
+      if (!L.tampak) continue;
+      if (L.perluUkur) { L.perluUkur = false; L.ukurUlang(); }
+      if (L.w > 1) gambarLapisan(L, waktu, dt);
+    }
   }
-  function mulai() {
-    kanvasLatar.hidden = false;
-    kanvasHero.hidden = false;
-    ukurSemua();
-    if (aktif) return;
-    aktif = true;
-    lalu = performance.now();
-    raf = requestAnimationFrame(langkah);
-  }
-  function henti() {
-    aktif = false;
-    cancelAnimationFrame(raf);
-    kanvasLatar.hidden = true;
-    kanvasHero.hidden = true;
-  }
-  function aturHalaman(rute) { if (rute === 'beranda') mulai(); else henti(); }
-
-  window.addEventListener('mmx-rute', function (e) { aturHalaman(e.detail); });
-  henti();
-  if (window.MMX_RUTE) aturHalaman(window.MMX_RUTE);
+  requestAnimationFrame(langkah);
 })();
