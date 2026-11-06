@@ -1,0 +1,135 @@
+/* ============================================================
+   WEBSITE MIXMAX SOUVENIR — Gerak halaman Produk (gaya King River "Insights")
+   Hanya berlaku di #sub-katalog setelah js/gerak-produk.js memberi kelas .gp,
+   jadi bila skrip gagal dimuat, katalog tampil seperti biasa.
+   Font, warna, latar 3D, kunang-kunang, dan data tetap milik Mixmax:
+   semua warna & huruf di sini memakai token dari css/style.css.
+   ============================================================ */
+#sub-katalog.gp { --gp-ease: cubic-bezier(0.33, 1, 0.68, 1); position: relative; isolation: isolate; overflow-x: clip; }
+
+/* ---------- Gulir halus (Lenis) — aktif hanya di halaman Produk ---------- */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+
+/* ---------- Kepala halaman: aksen besar di belakang judul ---------- */
+.gp-aksen { position: absolute; left: -0.03em; top: 4px; z-index: -1; pointer-events: none; user-select: none; white-space: nowrap; font: italic 400 clamp(7rem, 24vw, 22rem)/0.85 var(--serif); letter-spacing: -0.03em; color: var(--bronze); opacity: 0.08; }
+.gp .page-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px 64px; padding: 36px 0 48px; }
+.gp .page-head > div:first-child { max-width: none; gap: 14px; }
+.gp .page-head .h1 { text-wrap: balance; }
+.gp-kanan { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; min-width: 0; }
+.gp-kanan .muted { max-width: 34rem; }
+.gp .info-box { max-width: 34rem; }
+.gp .garis-gradasi { transform-origin: left center; }
+@media (min-width: 1024px) {
+  .gp .page-head { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; padding: 48px 0 56px; }
+}
+
+/* ---------- Filter kategori: isi gelap naik dari bawah saat disorot ---------- */
+.gp .toolbar { padding: 28px 0 36px; }
+.gp .tab { position: relative; isolation: isolate; overflow: hidden; transition: border-color .35s ease-out, color .35s ease-out, transform .15s ease-out; }
+.gp .tab::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ink); transform: scaleY(0); transform-origin: center bottom; transition: transform .45s var(--gp-ease); }
+.gp .tab:focus-visible::before { transform: scaleY(1); }
+.gp .tab:focus-visible { color: var(--bg); border-color: var(--ink); }
+.gp .tab:active { transform: scale(.96); }
+
+/* ---------- Grid kartu: 1 / 2 / 3 kolom seperti King River ---------- */
+.gp .pgrid { grid-template-columns: minmax(0, 1fr); gap: 24px 0; padding-bottom: 0; }
+@media (min-width: 768px) { .gp .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px 32px; } }
+@media (min-width: 1024px) { .gp .pgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px 40px; } }
+
+/* ---------- Kartu produk tanpa kotak; panel muncul saat disorot ---------- */
+.gp .pcard { position: relative; isolation: isolate; padding-bottom: 2rem; background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; transition: none; }
+.gp .pcard::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--kaca); border: 1px solid var(--line); border-radius: var(--r2); box-shadow: var(--sh); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); opacity: 0; transform: scale(.985); transition: opacity .5s ease-out, transform .8s var(--gp-ease); }
+.gp .pcard:hover { border-color: transparent; box-shadow: none; transform: none; }
+.gp .pcard.salah { border: 0; box-shadow: none; }
+.gp .pcard.salah::before { opacity: 1; transform: none; border-color: var(--err-line); }
+@media (min-width: 1024px) { .gp .pcard { padding-bottom: 3rem; } }
+
+.gp .pimg { aspect-ratio: 16 / 9; max-width: 100%; border: 0; border-radius: var(--r); background: var(--mid); clip-path: inset(0 round var(--r)); transition: clip-path .8s var(--gp-ease); }
+.gp-frame { position: absolute; inset: 0; overflow: hidden; }
+.gp .pimg img { transition: transform 1.4s var(--gp-ease); }
+
+/* kartu kini tanpa kotak kaca, jadi teks diberi pendar krem tipis supaya tetap terbaca di atas partikel latar 3D */
+.gp .pbody { width: calc(100% - 2rem); padding: 24px 0 0; gap: 0; flex: none; text-shadow: 0 0 14px rgba(253, 249, 243, 0.95), 0 0 3px rgba(253, 249, 243, 0.9); transition: transform .8s var(--gp-ease); }
+@media (min-width: 1024px) { .gp .pbody { padding-top: 32px; } }
+.gp .pmeta { justify-content: flex-start; gap: 12px; }
+.gp .pmeta .muted { transition: color .45s ease-out; }
+.gp .ptitle { margin-top: 12px; max-width: 22rem; font-size: 21px; line-height: 1.2; text-wrap: pretty; transition: color .45s ease-out; }
+@media (min-width: 768px) { .gp .ptitle { font-size: 24px; } }
+.gp .pprice { margin-top: 12px; }
+.gp .pdesc { margin-top: 6px; }
+.gp-aksi { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-top: 22px; }
+.gp .pqty { margin-top: 0; padding-top: 0; }
+.gp .perr { margin-top: 12px; }
+
+/* Tombol keranjang tampil seperti tautan "Read more": huruf kapital + garis bawah */
+.gp .gp-more { position: relative; display: inline-flex; align-items: center; width: auto; min-height: 44px; padding: 0 0 2px; background: none; border: 0; border-radius: 0; box-shadow: none; color: var(--ink); font: 700 11px/16px var(--mono); letter-spacing: 0.16em; text-transform: uppercase; transition: color .45s ease-out; }
+.gp .gp-more:hover:not([disabled]) { background: none; box-shadow: none; transform: none; }
+.gp .gp-more > .bi { display: none; }
+.gp-rule { position: absolute; left: 0; bottom: 8px; width: 100%; height: 1px; background: currentColor; transform-origin: left center; }
+
+@keyframes gp-rule-ulang {
+  0% { transform: scaleX(1); transform-origin: right center; }
+  45% { transform: scaleX(0); transform-origin: right center; }
+  46% { transform: scaleX(0); transform-origin: left center; }
+  100% { transform: scaleX(1); transform-origin: left center; }
+}
+
+/* Keadaan sorot: panel tampil, foto menyusut 1rem ke dalam, isi bergeser 1rem, teks jadi bronze */
+.gp .pcard:focus-within::before { opacity: 1; transform: scale(1); }
+.gp .pcard:focus-within .pimg { clip-path: inset(1rem 1rem 0 round var(--r)); }
+.gp .pcard:focus-within .pimg img { transform: scale(1.05); }
+.gp .pcard:focus-within .pbody { transform: translateX(1rem); }
+.gp .pcard:focus-within .ptitle, .gp .pcard:focus-within .gp-more { color: var(--bronze); }
+.gp .pcard:focus-within .pmeta .muted { color: var(--bronze-terang); }
+@media (hover: hover) and (pointer: fine) {
+  .gp .pcard:hover::before { opacity: 1; transform: scale(1); }
+  .gp .pcard:hover .pimg { clip-path: inset(1rem 1rem 0 round var(--r)); }
+  .gp .pcard:hover .pimg img { transform: scale(1.05); }
+  .gp .pcard:hover .pbody { transform: translateX(1rem); }
+  .gp .pcard:hover .ptitle, .gp .pcard:hover .gp-more { color: var(--bronze); }
+  .gp .pcard:hover .pmeta .muted { color: var(--bronze-terang); }
+  .gp .pcard:hover .gp-rule { animation: gp-rule-ulang .7s var(--gp-ease) both; }
+  .gp .tab:hover::before { transform: scaleY(1); }
+  .gp .tab:hover { color: var(--bg); border-color: var(--ink); }
+  .gp .tab:hover span { color: var(--ink-400); }
+  .gp .gp-hal:hover:not([aria-current]):not([aria-disabled="true"])::before { transform: scaleY(1); }
+  .gp .gp-hal:hover:not([aria-current]):not([aria-disabled="true"]) { color: var(--bg); border-color: var(--ink); }
+}
+/* Selama animasi masuk, transisi CSS dimatikan supaya tidak berebut dengan GSAP */
+.gp .pcard.gp-masuk .pimg, .gp .pcard.gp-masuk .pimg img, .gp .pcard.gp-masuk .pbody { transition: none; }
+
+/* ---------- Nomor halaman katalog ---------- */
+.gp-halaman { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; margin-top: 56px; }
+@media (min-width: 768px) { .gp-halaman { gap: 12px; } }
+@media (min-width: 1024px) { .gp-halaman { margin-top: 80px; } }
+.gp-hal { position: relative; isolation: isolate; overflow: hidden; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; background: var(--card); border: 1px solid var(--line-kuat); border-radius: var(--r-s); color: var(--bronze); font: 700 13px/1 var(--mono); transition: border-color .35s ease-out, color .35s ease-out, transform .15s ease-out; }
+.gp-hal::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--ink); transform: scaleY(0); transform-origin: center bottom; transition: transform .45s var(--gp-ease); }
+.gp-hal .bi { font-size: 16px; transition: transform .45s var(--gp-ease); }
+.gp-hal:focus-visible { color: var(--bg); border-color: var(--ink); }
+.gp-hal:focus-visible::before { transform: scaleY(1); }
+.gp-hal:active:not([aria-disabled="true"]) { transform: scale(.95); }
+.gp-hal[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: var(--bg); cursor: default; }
+.gp-hal[aria-disabled="true"] { opacity: .4; cursor: default; }
+.gp-hal-prev:hover:not([aria-disabled="true"]) .bi { transform: translateX(-3px); }
+.gp-hal-next:hover:not([aria-disabled="true"]) .bi { transform: translateX(3px); }
+#gridProduk[aria-busy="true"] ~ .gp-halaman, #gridProduk[aria-busy="true"] { pointer-events: none; }
+
+/* ---------- Ajakan di bawah katalog (panel terbuka dari atas) ---------- */
+.gp-cta { padding: 96px 0 88px; }
+.gp-cta-panel { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px 64px; padding: 44px 28px; background: var(--kaca); border: 1px solid var(--line); border-radius: var(--r3); box-shadow: var(--sh-sm); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.gp-cta-kiri { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; min-width: 0; }
+.gp-cta .lbl { padding: 4px 12px; background: var(--bronze-c); border: 1px solid var(--bronze-line); border-radius: var(--pill); letter-spacing: 0.2em; }
+.gp-cta .lbl::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.gp-cta .h2 { font-size: clamp(32px, 4vw, 48px); line-height: 1.08; text-wrap: balance; }
+.gp-cta-kanan { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 20px; padding-top: 28px; min-width: 0; }
+.gp-cta-kanan .muted { max-width: 34rem; font-size: 16px; line-height: 26px; }
+.gp-cta-garis { position: absolute; left: 0; right: 0; top: 0; height: 1px; background: var(--line-kuat); transform-origin: left center; }
+.gp-cta .cta-poin { justify-content: flex-start; margin-top: 0; gap: 10px 24px; }
+@media (min-width: 1024px) {
+  .gp-cta { padding: 120px 0 112px; }
+  .gp-cta-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; padding: 64px; }
+  .gp-cta-kanan { padding-top: 32px; }
+}
