@@ -76,8 +76,8 @@
   kanvasHero.setAttribute('aria-hidden', 'true');
   banner.appendChild(kanvasHero);
 
-  var latar = buatLapisan(kanvasLatar, { tambah: false, ukur: [9, 26], gulir: true, dpr: 1, bola: kecil ? 16 : 30, debu: 0, sinar: SINAR_KREM });
-  var hero = buatLapisan(kanvasHero, { tambah: true, ukur: [10, 40], gulir: false, dpr: 1.5, bola: kecil ? 26 : 50, debu: kecil ? 70 : 170, sinar: SINAR_GELAP });
+  var latar = buatLapisan(kanvasLatar, { tambah: false, ukur: [9, 26], gulir: true, dpr: 1, bola: kecil ? 36 : 70, debu: 0, sinar: SINAR_KREM });
+  var hero = buatLapisan(kanvasHero, { tambah: true, ukur: [10, 40], gulir: false, dpr: 1.5, bola: kecil ? 60 : 120, debu: kecil ? 110 : 260, sinar: SINAR_GELAP });
   var lapisan = [latar, hero];
 
   if (window.IntersectionObserver) new IntersectionObserver(function (e) { hero.tampak = e[0].isIntersecting; }).observe(banner);
@@ -90,8 +90,10 @@
     geserTY = ky / window.innerHeight - 0.5;
   }, { passive: true });
   window.addEventListener('pointerdown', function (e) {       // klik: bola di sekitarnya terhambur
+    if (!aktif) return;
     lapisan.forEach(function (L) {
       L.bola.forEach(function (b) {
+        if (b.px === undefined) return;                       // belum pernah digambar
         var ax = b.px - (e.clientX - L.x), ay = b.py - (e.clientY - L.y), d = Math.sqrt(ax * ax + ay * ay) || 1;
         if (d < JANGKAU * 2) { var k = (1 - d / (JANGKAU * 2)) * 340; b.dx += ax / d * k; b.dy += ay / d * k; }
       });
@@ -107,9 +109,9 @@
     g.setTransform(L.dpr, 0, 0, L.dpr, 0, 0);
     g.clearRect(0, 0, w, h);
     g.globalCompositeOperation = L.tambah ? 'lighter' : 'source-over';
-    var i, b;
+    var i, b, nDebu = Math.ceil(L.debu.length * porsi), nBola = Math.ceil(L.bola.length * porsi);
     g.fillStyle = 'rgba(255,240,205,1)';
-    for (i = 0; i < L.debu.length; i++) {
+    for (i = 0; i < nDebu; i++) {
       b = L.debu[i];
       b.x += b.laju * dt;
       if (b.x < 0) b.x += w; else if (b.x > w) b.x -= w;
@@ -117,7 +119,7 @@
       g.fillRect(b.x, b.y, b.r, b.r);
     }
     var redam = Math.exp(-dt * 2.2), batas = 90;
-    for (i = 0; i < L.bola.length; i++) {
+    for (i = 0; i < nBola; i++) {
       b = L.bola[i];
       b.x += b.laju * dt;                                     // bergerak ke kanan atau kiri, lalu muncul lagi di sisi lain
       if (b.x < -batas) b.x += w + batas * 2; else if (b.x > w + batas) b.x -= w + batas * 2;
@@ -138,12 +140,24 @@
   }
 
   var aktif = false, raf = 0, lalu = 0, waktu = 0;
+
+  /* Perangkat kewalahan: gambar lebih sedikit bola supaya tetap mulus, lalu naik lagi saat sudah lega. */
+  var porsi = 1, rataMs = 16;
+  function jagaMulus(ms) {
+    if (ms > 250) return;                 // tab baru kembali dari latar belakang
+    rataMs += (ms - rataMs) * 0.05;
+    if (waktu < 3) return;                // abaikan detik-detik awal saat halaman masih memuat
+    if (rataMs > 26 && porsi > 0.4) { porsi = Math.max(0.4, porsi - 0.15); rataMs = 18; }
+    else if (rataMs < 18 && porsi < 1) porsi = Math.min(1, porsi + 0.001);
+  }
+
   function langkah(now) {
     if (!aktif) return;
     if (!vAdmin.hidden) { henti(); return; }
     raf = requestAnimationFrame(langkah);
     if (document.body.classList.contains('modal-terbuka')) { lalu = now; return; }
     var dt = Math.min(0.05, (now - lalu) / 1000);
+    jagaMulus(now - lalu);
     lalu = now;
     waktu += dt;
     geserX += (geserTX - geserX) * (1 - Math.exp(-dt * 3));
