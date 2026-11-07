@@ -55,6 +55,10 @@
   function gambar(id, w) {
     return idValid(id) ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + (w || 600) : '';
   }
+  /** Video banner dari Drive (file dibagikan "siapa saja yang memiliki link"). */
+  function videoDrive(id) {
+    return idValid(id) ? 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(id) : '';
+  }
   function inisial(nama) {
     const p = String(nama || '').replace(/<[^>]*>/g, ' ').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
     if (!p.length) return '?';
@@ -273,6 +277,84 @@
       else toast(pesanDari(e), 'err');
       return null;
     });
+  }
+
+  // Video banner: MP4/WEBM/MOV tanpa suara, maks. 5 detik & 15 MB.
+  // Cuplikan awal video dijadikan gambar sampul (tampil saat video dimuat / bila video gagal).
+  const VIDEO_MAKS_DETIK = 5;
+  const VIDEO_MAKS_MB = 15;
+  function jenisVideo(file) {
+    if (!file) return '';
+    if (/^video\/(mp4|webm|quicktime)$/.test(file.type)) return file.type;
+    const n = String(file.name || '').toLowerCase();
+    if (/\.mp4$/.test(n)) return 'video/mp4';
+    if (/\.webm$/.test(n)) return 'video/webm';
+    if (/\.mov$/.test(n)) return 'video/quicktime';
+    return /^video\//.test(file.type) ? file.type : '';
+  }
+  function bacaBase64(blob) {
+    return new Promise(function (resolve, reject) {
+      const fr = new FileReader();
+      fr.onload = function () { resolve(String(fr.result).split(',')[1]); };
+      fr.onerror = function () { reject(errPengguna('File gagal dibaca. Pilih ulang filenya.')); };
+      fr.readAsDataURL(blob);
+    });
+  }
+  function siapkanVideo(file, maks) {
+    return new Promise(function (resolve, reject) {
+      const mime = jenisVideo(file);
+      if (!/^video\/(mp4|webm|quicktime)$/.test(mime)) { reject(errPengguna('Format video harus MP4, WEBM, atau MOV.')); return; }
+      if (file.size > VIDEO_MAKS_MB * 1024 * 1024) {
+        reject(errPengguna('Video terlalu besar (' + (file.size / 1048576).toFixed(1) + ' MB). Maksimal ' + VIDEO_MAKS_MB + ' MB. Rekam ulang dengan resolusi 1080p atau 720p.'));
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      const v = document.createElement('video');
+      v.muted = true;
+      v.playsInline = true;
+      v.preload = 'auto';
+      let selesai = false;
+      const gagal = function (pesan) {
+        if (selesai) return;
+        selesai = true;
+        clearTimeout(batas);
+        URL.revokeObjectURL(url);
+        reject(errPengguna(pesan));
+      };
+      const batas = setTimeout(function () { gagal('Video tidak bisa dibaca. Gunakan video MP4 (H.264).'); }, 20000);
+      v.onerror = function () { gagal('Video tidak bisa diputar di browser ini. Gunakan video MP4 (H.264).'); };
+      v.onloadedmetadata = function () {
+        if (!isFinite(v.duration) || v.duration <= 0) { gagal('Durasi video tidak terbaca. Gunakan video MP4 (H.264).'); return; }
+        if (v.duration > VIDEO_MAKS_DETIK + 0.5) {
+          gagal('Video berdurasi ' + v.duration.toFixed(1).replace('.', ',') + ' detik. Maksimal ' + VIDEO_MAKS_DETIK + ' detik, potong dulu videonya.');
+          return;
+        }
+        v.currentTime = Math.min(0.1, v.duration / 2);
+      };
+      v.onseeked = function () {
+        if (selesai) return;
+        if (!v.videoWidth || !v.videoHeight) { gagal('Video tidak bisa diputar di browser ini. Gunakan video MP4 (H.264).'); return; }
+        const skala = Math.min(1, maks / Math.max(v.videoWidth, v.videoHeight));
+        const cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(v.videoWidth * skala));
+        cv.height = Math.max(1, Math.round(v.videoHeight * skala));
+        cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+        cv.toBlob(function (blob) {
+          if (!blob) { gagal('Sampul video gagal dibuat. Pilih video lain.'); return; }
+          selesai = true;
+          clearTimeout(batas);
+          Promise.all([bacaBase64(blob), bacaBase64(file)]).then(function (h) {
+            resolve({ base64: h[0], mime: 'image/jpeg', url: URL.createObjectURL(blob), video: { base64: h[1], mime: mime, url: url, durasi: v.duration } });
+          }, reject);
+        }, 'image/jpeg', 0.82);
+      };
+      v.src = url;
+    });
+  }
+  /** Banner menerima gambar atau video; video dicek dulu durasi dan ukurannya. */
+  function pilihMediaBanner(file) {
+    const proses = jenisVideo(file) ? siapkanVideo(file, 1920) : kompresGambar(file, 1920);
+    return proses.catch(function (e) { toast(pesanDari(e), 'err'); return null; });
   }
 
   function unduhPdf(base64, nama) {
@@ -539,8 +621,9 @@
   // ============================================================
   const BNR = { idx: 0, timer: null, jeda: GERAK_MINIM, hover: false, aktif: false };
 
-  function htmlSlide(b, i, total, urlGanti) {
+  function htmlSlide(b, i, total, urlGanti, videoGanti) {
     const url = urlGanti || gambar(b.idGambar, 1920);
+    const vid = videoGanti !== undefined ? videoGanti : videoDrive(b.idVideo);
     let tombol = '';
     if (b.teksTombol) {
       if (b.jenisTautan === 'URL' && /^https:\/\//.test(b.tautan || '')) {
@@ -550,7 +633,9 @@
       }
     }
     return '<div class="slide' + (i === 0 ? ' aktif' : '') + '" role="group" aria-roledescription="slide" aria-label="' + (i + 1) + ' dari ' + total + '"' + (i === 0 ? '' : ' aria-hidden="true"') + '>' +
-      (url ? '<div class="slide-bg" style="background-image:url(&quot;' + esc(url) + '&quot;)"></div><div class="slide-overlay"></div>' : '') +
+      (url ? '<div class="slide-bg" style="background-image:url(&quot;' + esc(url) + '&quot;)"></div>' : '') +
+      (vid ? '<video class="slide-video" src="' + esc(vid) + '"' + (url ? ' poster="' + esc(url) + '"' : '') + ' muted loop playsinline preload="none" disablepictureinpicture aria-hidden="true"></video>' : '') +
+      ((url || vid) ? '<div class="slide-overlay"></div>' : '') +
       '<div class="slide-card"><span class="lbl">Promo &amp; Event</span><h2 class="slide-judul">' + esc(b.judul || 'Judul banner') + '</h2>' +
       (b.subjudul ? '<p class="slide-sub">' + esc(b.subjudul) + '</p>' : '') +
       (tombol ? '<div class="slide-cta">' + tombol + '</div>' : '') + '</div></div>';
@@ -563,6 +648,22 @@
     const banyak = daftar.length > 1;
     $$('#banner .banner-nav').forEach(function (el) { el.hidden = !banyak; });
     byId('banner').hidden = daftar.length === 0;
+    aturVideoBanner();
+  }
+
+  // Video banner: hanya slide aktif yang diputar, dan hanya saat Beranda tampil.
+  function aturVideoBanner() {
+    $$('#bannerTrack .slide-video').forEach(function (v) {
+      const putar = BNR.aktif && !GERAK_MINIM && !document.hidden && v.parentNode.classList.contains('aktif');
+      if (putar) {
+        v.muted = true;
+        if (v.preload !== 'auto') v.preload = 'auto';
+        if (v.paused) { const p = v.play(); if (p && p.catch) p.catch(function () {}); }
+      } else if (!v.paused) {
+        v.pause();
+        try { v.currentTime = 0; } catch (e) { /* abaikan */ }
+      }
+    });
   }
 
   function keSlide(i) {
@@ -574,10 +675,12 @@
       s.classList.toggle('aktif', a);
       if (a) s.removeAttribute('aria-hidden'); else s.setAttribute('aria-hidden', 'true');
     });
+    aturVideoBanner();
   }
 
   function aturBanner(aktif) {
     BNR.aktif = aktif;
+    aturVideoBanner();
     clearInterval(BNR.timer);
     BNR.timer = null;
     if (!aktif || BNR.jeda || BNR.hover || document.hidden || $$('#bannerTrack .slide').length < 2) return;
@@ -1946,17 +2049,24 @@
       const n = i + 1;
       const f = ADM.bnr.fotoBaru[i];
       const prev = f ? f.url : gambar(s.idGambar, 600);
+      const adaVideo = f ? !!f.video : idValid(s.idVideo);
+      const media = (f && f.video)
+        ? '<video src="' + esc(f.video.url) + '" muted loop autoplay playsinline aria-label="Video slide ' + n + '"></video>'
+        : (prev ? '<img src="' + esc(prev) + '" alt="Gambar slide ' + n + '">' : '');
       const tujuan = s.jenisTautan === 'URL'
         ? '<input id="bntautan' + i + '" class="inp" maxlength="500" value="' + esc(s.tautan) + '" placeholder="https://…" data-input="bnr" data-slot="' + i + '" data-k="tautan">'
         : '<select id="bntautan' + i + '" class="inp" data-input="bnr" data-slot="' + i + '" data-k="tautan">' + HALAMAN_OPSI.map(function (h) {
           return '<option value="' + h[0] + '"' + (s.tautan === h[0] ? ' selected' : '') + '>' + h[1] + '</option>';
         }).join('') + '</select>';
       return '<div class="card panel slot">' +
-        '<div class="panel-head"><h2 class="h4"><span class="nomor">' + dua(n) + '</span> Slide ' + n + (f ? ' <span class="badge badge-blue">Gambar baru</span>' : '') + '</h2>' +
+        '<div class="panel-head"><h2 class="h4"><span class="nomor">' + dua(n) + '</span> Slide ' + n +
+          (f ? ' <span class="badge badge-blue">' + (f.video ? 'Video baru' : 'Gambar baru') + '</span>' : (adaVideo ? ' <span class="badge badge-green"><i class="bi bi-camera-video" aria-hidden="true"></i> Video</span>' : '')) + '</h2>' +
         '<button type="button" class="btn btn-ghost btn-sm" data-aksi="bnrLihat" data-slot="' + i + '"><i class="bi bi-eye" aria-hidden="true"></i> Pratinjau</button></div>' +
-        '<div class="slot-grid"><div><div class="slot-img" data-img-box>' + (prev ? '<img src="' + esc(prev) + '" alt="Gambar slide ' + n + '">' : '') + '<i class="bi bi-image pimg-ph" aria-hidden="true"></i></div>' +
-        '<button type="button" class="btn btn-outline btn-sm btn-block mt-8" data-aksi="pilihFile" data-target="bnFile' + i + '"><i class="bi bi-upload" aria-hidden="true"></i> Ganti gambar</button>' +
-        '<input type="file" id="bnFile' + i + '" class="bn-file" data-slot="' + i + '" accept="image/jpeg,image/png,image/webp" hidden></div>' +
+        '<div class="slot-grid"><div><div class="slot-img" data-img-box>' + media + '<i class="bi bi-image pimg-ph" aria-hidden="true"></i></div>' +
+        '<button type="button" class="btn btn-outline btn-sm btn-block mt-8" data-aksi="pilihFile" data-target="bnFile' + i + '"><i class="bi bi-upload" aria-hidden="true"></i> Ganti gambar/video</button>' +
+        (adaVideo ? '<button type="button" class="btn btn-ghost btn-sm btn-block mt-8" data-aksi="bnrHapusVideo" data-slot="' + i + '"><i class="bi bi-trash3" aria-hidden="true"></i> Hapus video</button>' : '') +
+        '<p class="xs muted mt-8">Video MP4 tanpa suara, maks. ' + VIDEO_MAKS_DETIK + ' detik &amp; ' + VIDEO_MAKS_MB + ' MB.</p>' +
+        '<input type="file" id="bnFile' + i + '" class="bn-file" data-slot="' + i + '" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" hidden></div>' +
         '<div>' + fieldBnr(i, 'judul', 'Judul', s.judul, 80, true) + fieldBnr(i, 'subjudul', 'Subjudul', s.subjudul, 160, false) +
         fieldBnr(i, 'teksTombol', 'Teks tombol (kosong = tanpa tombol)', s.teksTombol, 30, false, 'Contoh: Lihat Produk') +
         '<div class="g2 g-tight"><div class="field"><label for="bnjenisTautan' + i + '">Jenis tautan</label><select id="bnjenisTautan' + i + '" class="inp" data-input="bnr" data-slot="' + i + '" data-k="jenisTautan">' +
@@ -1969,7 +2079,9 @@
     const s = ADM.bnr.slides[i];
     if (!s) { byId('bnrPreview').innerHTML = ''; return; }
     const f = ADM.bnr.fotoBaru[i];
-    byId('bnrPreview').innerHTML = '<div class="banner-track">' + htmlSlide(s, 0, 3, f ? f.url : '') + '</div>';
+    byId('bnrPreview').innerHTML = '<div class="banner-track">' + htmlSlide(s, 0, 3, f ? f.url : '', f ? (f.video ? f.video.url : '') : undefined) + '</div>';
+    const v = byId('bnrPreview').querySelector('video');
+    if (v) { v.muted = true; v.preload = 'auto'; const p = v.play(); if (p && p.catch) p.catch(function () {}); }
     byId('bnrPrevKet').textContent = 'Slide ' + (i + 1) + ' dari 3';
   }
   async function simpanBanner() {
@@ -1986,17 +2098,24 @@
     try {
       for (let i = 0; i < 3; i++) {
         const f = ADM.bnr.fotoBaru[i];
+        if (f && f.video && !f.video.id) {
+          setTombolProses(btn, true, 'Mengunggah video ' + (i + 1) + '…');
+          const upv = await adminPanggil('adminUnggahVideo', 'banner', f.video.base64, f.video.mime);
+          if (!upv.success) throw errPengguna('Slide ' + (i + 1) + ': ' + upv.message);
+          f.video.id = upv.data.id;
+        }
         if (f && !f.id) {
-          setTombolProses(btn, true, 'Mengunggah gambar ' + (i + 1) + '…');
+          setTombolProses(btn, true, 'Mengunggah ' + (f.video ? 'sampul video ' : 'gambar ') + (i + 1) + '…');
           const up = await adminPanggil('adminUnggahGambar', 'banner', f.base64, f.mime);
           if (!up.success) throw errPengguna('Slide ' + (i + 1) + ': ' + up.message);
           f.id = up.data.id;
         }
         if (f && f.id) slides[i].idGambar = f.id;
+        if (f) slides[i].idVideo = f.video ? f.video.id : '';
       }
       setTombolProses(btn, true, 'Menyimpan…');
       const res = await adminPanggil('adminSimpanBanner', slides.map(function (s) {
-        return { judul: s.judul, subjudul: s.subjudul, idGambar: s.idGambar, teksTombol: s.teksTombol, jenisTautan: s.jenisTautan, tautan: s.tautan };
+        return { judul: s.judul, subjudul: s.subjudul, idGambar: s.idGambar, idVideo: s.idVideo || '', teksTombol: s.teksTombol, jenisTautan: s.jenisTautan, tautan: s.tautan };
       }));
       if (!res.success) { tampilAlert('errBanner', res.message); return; }
       ADM.bnr.kotor = false;
@@ -2661,6 +2780,16 @@
     katHapus: function (el) { const row = el.closest('.kat-baris'); if (row) row.parentNode.removeChild(row); },
     katSimpan: function () { simpanKategori(); },
     simpanBanner: function () { simpanBanner(); },
+    bnrHapusVideo: function (el) {
+      const i = Number(el.getAttribute('data-slot')) || 0;
+      const f = ADM.bnr.fotoBaru[i];
+      if (f && f.video) delete ADM.bnr.fotoBaru[i];
+      else if (ADM.bnr.slides[i]) ADM.bnr.slides[i].idVideo = '';
+      ADM.bnr.kotor = true;
+      ADM.bnr.idx = i;
+      renderSlotBanner();
+      renderPreviewBanner();
+    },
     bnrLihat: function (el) { ADM.bnr.idx = Number(el.getAttribute('data-slot')) || 0; renderPreviewBanner(); },
     bnrPrevSlide: function () { ADM.bnr.idx = (ADM.bnr.idx + 2) % 3; renderPreviewBanner(); },
     bnrNextSlide: function () { ADM.bnr.idx = (ADM.bnr.idx + 1) % 3; renderPreviewBanner(); },
@@ -2826,7 +2955,9 @@
       const t = e.target;
       if (t && t.classList && t.classList.contains('bn-file') && t.files && t.files[0]) {
         const i = Number(t.getAttribute('data-slot'));
-        pilihGambar(t.files[0], 1920, null).then(function (h) {
+        const file = t.files[0];
+        t.value = '';
+        pilihMediaBanner(file).then(function (h) {
           if (!h) return;
           ADM.bnr.fotoBaru[i] = h;
           ADM.bnr.kotor = true;
@@ -2850,8 +2981,13 @@
       if (e.key === 'Tab' && aktif) jebakFokus(e, aktif);
     });
 
+    document.addEventListener('playing', function (e) {
+      const t = e.target;
+      if (t && t.classList && t.classList.contains('slide-video')) t.classList.add('siap');
+    }, true);
     document.addEventListener('error', function (e) {
       const t = e.target;
+      if (t && t.tagName === 'VIDEO') { t.classList.add('gagal'); return; }
       if (!t || t.tagName !== 'IMG') return;
       if (t.classList.contains('brand-logo-img')) {
         const m = document.createElement('span');

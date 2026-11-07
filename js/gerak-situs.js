@@ -376,8 +376,7 @@
     }
   }
   function animasiSlide(s, ganti) {
-    var bg = $('.slide-bg', s);
-    if (bg) { bg.classList.remove('gs-zoom'); void bg.offsetWidth; bg.classList.add('gs-zoom'); }
+    $$('.slide-bg, .slide-video', s).forEach(function (bg) { bg.classList.remove('gs-zoom'); void bg.offsetWidth; bg.classList.add('gs-zoom'); });
     if (!gerak) return;
     var kartu = $('.slide-card', s);
     if (!kartu) return;

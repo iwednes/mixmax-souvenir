@@ -112,8 +112,8 @@ body.gs { --gs-ease: cubic-bezier(0.33, 1, 0.68, 1); --gs-expo: cubic-bezier(0.1
 .gs #banner.gs-hero .banner-nav { display: none; }
 .gs .gs-hero .banner-track { will-change: transform; }
 .gs .gs-hero .slide { align-items: flex-end; justify-content: flex-start; padding: calc(var(--gs-hdr-h) + 40px) 0 80px; }
-.gs .gs-hero .slide-bg { transform: scale(1.1); transform-origin: 50% 50%; }
-.gs .gs-hero .slide.aktif .slide-bg.gs-zoom { animation: gs-zoom 2.4s cubic-bezier(0.5, 1, 0.89, 1) backwards; }
+.gs .gs-hero .slide-bg, .gs .gs-hero .slide-video { transform: scale(1.1); transform-origin: 50% 50%; }
+.gs .gs-hero .slide.aktif .gs-zoom { animation: gs-zoom 2.4s cubic-bezier(0.5, 1, 0.89, 1) backwards; }
 .gs .gs-hero .slide-overlay { background: linear-gradient(180deg, rgba(28, 25, 23, 0.42) 0%, rgba(28, 25, 23, 0.12) 30%, rgba(28, 25, 23, 0.2) 55%, rgba(28, 25, 23, 0.8) 100%); }
 .gs .gs-hero .slide-card { width: 100%; max-width: none; margin: 0 auto; padding: 0 max(24px, calc((100% - var(--wrap)) / 2 + 24px)); background: none; border: 0; border-radius: 0; box-shadow: none; gap: 16px; }
 .gs .gs-hero .slide-card > * { max-width: 760px; }
