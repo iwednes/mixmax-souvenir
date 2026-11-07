@@ -278,7 +278,9 @@
   // Video banner: MP4/WEBM/MOV tanpa suara, maks. 5 detik & 15 MB.
   // Cuplikan awal video dijadikan gambar sampul (tampil saat video dimuat / bila video gagal).
   const VIDEO_MAKS_DETIK = 5;
-  const VIDEO_MAKS_MB = 15;
+  const VIDEO_MAKS_MB = 15;        // batas file yang dikirim ke server
+  const VIDEO_MAKS_MB_ASLI = 200;  // batas file asli bila browser bisa mengecilkannya
+  const VIDEO_SISI_MAKS = 1920;    // 1080p: tajam di layar besar, ringan dan lancar di HP
   function jenisVideo(file) {
     if (!file) return '';
     if (/^video\/(mp4|webm|quicktime)$/.test(file.type)) return file.type;
@@ -296,12 +298,238 @@
       fr.readAsDataURL(blob);
     });
   }
+  /** Format rekaman MP4 (H.264) yang didukung browser admin; kosong bila tidak bisa mengecilkan video. */
+  function mimeRekamMp4() {
+    try {
+      if (!window.MediaRecorder || !MediaRecorder.isTypeSupported || !HTMLCanvasElement.prototype.captureStream) return '';
+      const daftar = ['video/mp4;codecs=avc1.640028', 'video/mp4;codecs=avc1.4d0028', 'video/mp4;codecs=avc1.42E01F', 'video/mp4;codecs=avc1', 'video/mp4'];
+      for (let i = 0; i < daftar.length; i++) if (MediaRecorder.isTypeSupported(daftar[i])) return daftar[i];
+    } catch (e) { /* tidak didukung */ }
+    return '';
+  }
+  /**
+   * Putar ulang video sekali di kanvas berukuran w×h lalu rekam menjadi MP4 H.264 tanpa suara.
+   * Hasilnya jauh lebih kecil dari video HP (4K) dan bisa diputar lancar di semua HP.
+   */
+  function kecilkanVideo(src, w, h, mimeRek) {
+    return new Promise(function (resolve, reject) {
+      const v = document.createElement('video');
+      v.muted = true;
+      v.playsInline = true;
+      v.preload = 'auto';
+      const cv = document.createElement('canvas');
+      cv.width = w;
+      cv.height = h;
+      const ctx = cv.getContext('2d');
+      const potongan = [];
+      let rec = null, stream = null, selesai = false, batas = null, bingkai = 0;
+      // Video lain yang sedang diputar dijeda dulu agar dekoder video tidak berebut.
+      const dijeda = Array.prototype.filter.call(document.querySelectorAll('video'), function (x) { return !x.paused; });
+      dijeda.forEach(function (x) { x.pause(); });
+      const akhiri = function (err, blob) {
+        if (selesai) return;
+        selesai = true;
+        clearTimeout(batas);
+        v.onerror = null;
+        try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { /* abaikan */ }
+        if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+        dijeda.forEach(function (x) { if (x.isConnected) { const p = x.play(); if (p && p.catch) p.catch(function () {}); } });
+        if (err) reject(err); else resolve(blob);
+      };
+      const gambarFrame = function () { try { ctx.drawImage(v, 0, 0, w, h); bingkai++; } catch (e) { /* abaikan */ } };
+      const lanjut = function (fn) { if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(fn); else requestAnimationFrame(fn); };
+      const ulang = function () { if (selesai || v.ended) return; gambarFrame(); lanjut(ulang); };
+      v.onerror = function () { akhiri(new Error('Video tidak terbaca')); };
+      v.onloadeddata = function () {
+        gambarFrame();
+        try {
+          stream = cv.captureStream(30);
+          const bitrate = Math.round(Math.max(1500000, 5000000 * (w * h) / (1920 * 1080)));
+          rec = new MediaRecorder(stream, { mimeType: mimeRek, videoBitsPerSecond: bitrate });
+        } catch (e) { akhiri(e); return; }
+        rec.ondataavailable = function (e) { if (e.data && e.data.size) potongan.push(e.data); };
+        rec.onstop = function () {
+          const b = new Blob(potongan, { type: 'video/mp4' });
+          // Komputer terlalu lambat (gambar patah-patah): jangan dipakai.
+          if (bingkai < (v.duration || VIDEO_MAKS_DETIK) * 15) { akhiri(new Error('Hanya ' + bingkai + ' bingkai terekam')); return; }
+          if (b.size) akhiri(null, b); else akhiri(new Error('Hasil rekaman kosong'));
+        };
+        rec.onerror = function () { akhiri(new Error('Perekaman gagal')); };
+        v.onended = function () { gambarFrame(); setTimeout(function () { if (rec.state !== 'inactive') rec.stop(); }, 80); };
+        batas = setTimeout(function () {
+          if (rec && rec.state !== 'inactive') { rec.onstop = null; try { rec.stop(); } catch (e) { /* abaikan */ } }
+          akhiri(new Error('Waktu habis'));
+        }, (v.duration || VIDEO_MAKS_DETIK) * 3000 + 8000);
+        rec.start(250);
+        const p = v.play();
+        lanjut(ulang);
+        if (p && p.catch) p.catch(function () { akhiri(new Error('Video tidak bisa diputar')); });
+      };
+      v.src = src;
+    });
+  }
+  /**
+   * Pembungkus MP4 mini (satu trek video H.264, tanpa B-frame). Menyusun ftyp + moov + mdat
+   * dari potongan hasil VideoEncoder, supaya hasilnya MP4 biasa yang bisa diputar di semua HP.
+   */
+  function susunMp4(sampel, avcc, w, h) {
+    const TS = 90000;
+    const enc = new TextEncoder();
+    function u32(n) { return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255]; }
+    function u16(n) { return [(n >>> 8) & 255, n & 255]; }
+    function gabung(arr) {
+      let n = 0;
+      arr.forEach(function (a) { n += a.length; });
+      const o = new Uint8Array(n);
+      let i = 0;
+      arr.forEach(function (a) { o.set(a, i); i += a.length; });
+      return o;
+    }
+    function kotak(tipe) {
+      const isi = gabung(Array.prototype.slice.call(arguments, 1).map(function (x) { return x instanceof Uint8Array ? x : new Uint8Array(x); }));
+      return gabung([new Uint8Array(u32(isi.length + 8)), enc.encode(tipe), isi]);
+    }
+    function penuh(tipe, versi, flag) {
+      const isi = Array.prototype.slice.call(arguments, 3);
+      return kotak.apply(null, [tipe, [versi, (flag >>> 16) & 255, (flag >>> 8) & 255, flag & 255]].concat(isi));
+    }
+    const MATRIKS = [].concat(u32(0x00010000), u32(0), u32(0), u32(0), u32(0x00010000), u32(0), u32(0), u32(0), u32(0x40000000));
+    const t0 = sampel[0].ts;
+    const waktu = sampel.map(function (x) { return Math.round((x.ts - t0) * TS / 1e6); });
+    const durasi = sampel.map(function (x, i) { return i < sampel.length - 1 ? Math.max(1, waktu[i + 1] - waktu[i]) : Math.max(1, Math.round((x.dur || 33333) * TS / 1e6)); });
+    let total = 0;
+    durasi.forEach(function (d) { total += d; });
+    const stts = [];
+    durasi.forEach(function (d) { const t = stts[stts.length - 1]; if (t && t[1] === d) t[0]++; else stts.push([1, d]); });
+    const kunci = [];
+    sampel.forEach(function (x, i) { if (x.key) kunci.push(i + 1); });
+    const ms = Math.round(total * 1000 / TS);
+    function buatMoov(offset) {
+      return kotak('moov',
+        penuh('mvhd', 0, 0, u32(0), u32(0), u32(1000), u32(ms), u32(0x00010000), u16(0x0100), new Array(10).fill(0), MATRIKS, new Array(24).fill(0), u32(2)),
+        kotak('trak',
+          penuh('tkhd', 0, 3, u32(0), u32(0), u32(1), u32(0), u32(ms), new Array(8).fill(0), u16(0), u16(0), u16(0), u16(0), MATRIKS, u32(w << 16), u32(h << 16)),
+          kotak('mdia',
+            penuh('mdhd', 0, 0, u32(0), u32(0), u32(TS), u32(total), u16(0x55c4), u16(0)),
+            penuh('hdlr', 0, 0, u32(0), enc.encode('vide'), new Array(12).fill(0), enc.encode('VideoHandler\0')),
+            kotak('minf',
+              penuh('vmhd', 0, 1, u16(0), u16(0), u16(0), u16(0)),
+              kotak('dinf', penuh('dref', 0, 0, u32(1), penuh('url ', 0, 1))),
+              kotak('stbl',
+                penuh('stsd', 0, 0, u32(1),
+                  kotak('avc1', new Array(6).fill(0), u16(1), new Array(16).fill(0), u16(w), u16(h), u32(0x00480000), u32(0x00480000), u32(0), u16(1), new Array(32).fill(0), u16(0x18), u16(0xffff),
+                    kotak('avcC', avcc))),
+                penuh('stts', 0, 0, u32(stts.length), [].concat.apply([], stts.map(function (t) { return u32(t[0]).concat(u32(t[1])); }))),
+                penuh('stss', 0, 0, u32(kunci.length), [].concat.apply([], kunci.map(u32))),
+                penuh('stsc', 0, 0, u32(1), u32(1), u32(sampel.length), u32(1)),
+                penuh('stsz', 0, 0, u32(0), u32(sampel.length), [].concat.apply([], sampel.map(function (x) { return u32(x.data.length); }))),
+                penuh('stco', 0, 0, u32(1), u32(offset)))))));
+    }
+    const ftyp = kotak('ftyp', enc.encode('isom'), u32(512), enc.encode('isomiso2avc1mp41'));
+    const ukuranMoov = buatMoov(0).length;
+    const moov = buatMoov(ftyp.length + ukuranMoov + 8);
+    let n = 0;
+    sampel.forEach(function (x) { n += x.data.length; });
+    const mdatHead = new Uint8Array(u32(n + 8).concat([109, 100, 97, 116]));
+    return new Blob([ftyp, moov, mdatHead].concat(sampel.map(function (x) { return x.data; })), { type: 'video/mp4' });
+  }
+  /**
+   * Kecilkan video lewat WebCodecs: video diputar setengah kecepatan, setiap bingkai digambar ke
+   * kanvas w×h lalu disandikan H.264. Waktu tiap bingkai diambil dari video asli, jadi hasilnya
+   * tetap berkecepatan normal dan tidak ada bingkai yang hilang walau komputernya lambat.
+   */
+  function kecilkanVideoWC(src, w, h) {
+    if (!window.VideoEncoder || !window.VideoFrame || !('requestVideoFrameCallback' in HTMLVideoElement.prototype)) return Promise.reject(new Error('WebCodecs tidak tersedia'));
+    const bitrate = Math.round(Math.max(1500000, 5000000 * (w * h) / (1920 * 1080)));
+    const calon = ['avc1.640028', 'avc1.4d0028', 'avc1.42e028'].map(function (c) {
+      return { codec: c, width: w, height: h, bitrate: bitrate, framerate: 30, avc: { format: 'avc' } };
+    });
+    function pilihKonfig(i) {
+      if (i >= calon.length) return Promise.reject(new Error('H.264 tidak didukung'));
+      return VideoEncoder.isConfigSupported(calon[i]).then(function (r) { return r && r.supported ? calon[i] : pilihKonfig(i + 1); }, function () { return pilihKonfig(i + 1); });
+    }
+    return pilihKonfig(0).then(function (cfg) {
+      return new Promise(function (resolve, reject) {
+        const sampel = [];
+        let avcc = null, selesai = false, batas = null, terakhir = -1, n = 0, salah = null;
+        const v = document.createElement('video');
+        v.muted = true;
+        v.playsInline = true;
+        v.preload = 'auto';
+        const cv = document.createElement('canvas');
+        cv.width = w;
+        cv.height = h;
+        const ctx = cv.getContext('2d');
+        const dijeda = Array.prototype.filter.call(document.querySelectorAll('video'), function (x) { return !x.paused; });
+        dijeda.forEach(function (x) { x.pause(); });
+        const encoder = new VideoEncoder({
+          output: function (chunk, meta) {
+            if (meta && meta.decoderConfig && meta.decoderConfig.description && !avcc) {
+              const d = meta.decoderConfig.description;
+              avcc = new Uint8Array(d.buffer ? d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength) : d.slice(0));
+            }
+            const data = new Uint8Array(chunk.byteLength);
+            chunk.copyTo(data);
+            sampel.push({ data: data, ts: chunk.timestamp, dur: chunk.duration, key: chunk.type === 'key' });
+          },
+          error: function (e) { salah = e; }
+        });
+        const akhiri = function (err, blob) {
+          if (selesai) return;
+          selesai = true;
+          clearTimeout(batas);
+          v.onerror = null;
+          try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) { /* abaikan */ }
+          try { if (encoder.state !== 'closed') encoder.close(); } catch (e) { /* abaikan */ }
+          dijeda.forEach(function (x) { if (x.isConnected) { const p = x.play(); if (p && p.catch) p.catch(function () {}); } });
+          if (err) reject(err); else resolve(blob);
+        };
+        try { encoder.configure(cfg); } catch (e) { akhiri(e); return; }
+        const bingkai = function (now, m) {
+          if (selesai) return;
+          const ts = Math.round(m.mediaTime * 1e6);
+          if (ts > terakhir) {
+            terakhir = ts;
+            try {
+              ctx.drawImage(v, 0, 0, w, h);
+              const f = new VideoFrame(cv, { timestamp: ts, duration: 33333 });
+              encoder.encode(f, { keyFrame: n % 60 === 0 });
+              f.close();
+              n++;
+            } catch (e) { akhiri(e); return; }
+          }
+          if (!v.ended) v.requestVideoFrameCallback(bingkai);
+        };
+        v.onerror = function () { akhiri(new Error('Video tidak terbaca')); };
+        v.onended = function () {
+          encoder.flush().then(function () {
+            if (salah) throw salah;
+            if (!avcc || !sampel.length) throw new Error('Hasil sandi kosong');
+            if (n < (v.duration || VIDEO_MAKS_DETIK) * 20) throw new Error('Hanya ' + n + ' bingkai');
+            for (let i = 1; i < sampel.length; i++) if (sampel[i].ts <= sampel[i - 1].ts) throw new Error('Urutan bingkai tidak lazim');
+            akhiri(null, susunMp4(sampel, avcc, w, h));
+          }).catch(function (e) { akhiri(e); });
+        };
+        v.onloadeddata = function () {
+          batas = setTimeout(function () { akhiri(new Error('Waktu habis')); }, (v.duration || VIDEO_MAKS_DETIK) * 6000 + 10000);
+          v.requestVideoFrameCallback(bingkai);
+          v.playbackRate = 0.5;
+          const p = v.play();
+          if (p && p.catch) p.catch(function () { akhiri(new Error('Video tidak bisa diputar')); });
+        };
+        v.src = src;
+      });
+    });
+  }
   function siapkanVideo(file, maks) {
+    const bisaWC = !!(window.VideoEncoder && window.VideoFrame && ('requestVideoFrameCallback' in HTMLVideoElement.prototype));
+    const mimeRek = (bisaWC || mimeRekamMp4()) ? (mimeRekamMp4() || 'wc') : '';
     return new Promise(function (resolve, reject) {
       const mime = jenisVideo(file);
       if (!/^video\/(mp4|webm|quicktime)$/.test(mime)) { reject(errPengguna('Format video harus MP4, WEBM, atau MOV.')); return; }
-      if (file.size > VIDEO_MAKS_MB * 1024 * 1024) {
-        reject(errPengguna('Video terlalu besar (' + (file.size / 1048576).toFixed(1) + ' MB). Maksimal ' + VIDEO_MAKS_MB + ' MB. Rekam ulang dengan resolusi 1080p atau 720p.'));
+      const batasMb = mimeRek ? VIDEO_MAKS_MB_ASLI : VIDEO_MAKS_MB;
+      if (file.size > batasMb * 1024 * 1024) {
+        reject(errPengguna('Video terlalu besar (' + (file.size / 1048576).toFixed(1) + ' MB). Maksimal ' + batasMb + ' MB. Rekam ulang dengan resolusi 1080p atau 720p.'));
         return;
       }
       const url = URL.createObjectURL(file);
@@ -335,13 +563,43 @@
         cv.width = Math.max(1, Math.round(v.videoWidth * skala));
         cv.height = Math.max(1, Math.round(v.videoHeight * skala));
         cv.getContext('2d').drawImage(v, 0, 0, cv.width, cv.height);
+        const durasi = v.duration;
+        const sk = Math.min(1, VIDEO_SISI_MAKS / Math.max(v.videoWidth, v.videoHeight));
+        const w = Math.max(2, Math.round(v.videoWidth * sk / 2) * 2);
+        const h = Math.max(2, Math.round(v.videoHeight * sk / 2) * 2);
+        // Lepas dekoder video asli (4K sangat berat) sebelum direkam ulang.
+        v.onerror = null;
+        try { v.removeAttribute('src'); v.load(); } catch (e) { /* abaikan */ }
         cv.toBlob(function (blob) {
           if (!blob) { gagal('Sampul video gagal dibuat. Pilih video lain.'); return; }
           selesai = true;
           clearTimeout(batas);
-          Promise.all([bacaBase64(blob), bacaBase64(file)]).then(function (h) {
-            resolve({ base64: h[0], mime: 'image/jpeg', url: URL.createObjectURL(blob), video: { base64: h[1], mime: mime, url: url, durasi: v.duration } });
-          }, reject);
+          let proses;
+          if (mimeRek) {
+            toast('Mengecilkan video ke ' + w + '×' + h + ' agar ringan di HP… tunggu ±' + Math.ceil(durasi * 2 + 2) + ' detik, jangan pindah tab.', 'info');
+            // Utama: WebCodecs (tiap bingkai utuh). Cadangan: MediaRecorder. Terakhir: file asli.
+            const lewatWC = bisaWC ? kecilkanVideoWC(url, w, h) : Promise.reject(new Error('WebCodecs tidak tersedia'));
+            proses = lewatWC.catch(function (e) {
+              console.warn('[Mixmax] WebCodecs gagal, mencoba MediaRecorder.', e && e.message);
+              if (mimeRek === 'wc') throw e;
+              return kecilkanVideo(url, w, h, mimeRek);
+            }).then(function (hasil) {
+              URL.revokeObjectURL(url);
+              return { blob: hasil, mime: 'video/mp4', url: URL.createObjectURL(hasil) };
+            }, function (e) {
+              console.warn('[Mixmax] Video gagal dikecilkan, memakai file asli.', e && e.message);
+              if (file.size > VIDEO_MAKS_MB * 1024 * 1024) throw errPengguna('Video gagal dikecilkan dan file aslinya lebih dari ' + VIDEO_MAKS_MB + ' MB. Rekam ulang dengan resolusi 1080p.');
+              return { blob: file, mime: mime, url: url };
+            });
+          } else {
+            proses = Promise.resolve({ blob: file, mime: mime, url: url });
+          }
+          proses.then(function (vid) {
+            if (vid.blob.size > VIDEO_MAKS_MB * 1024 * 1024) throw errPengguna('Video masih terlalu besar (' + (vid.blob.size / 1048576).toFixed(1) + ' MB). Maksimal ' + VIDEO_MAKS_MB + ' MB.');
+            return Promise.all([bacaBase64(blob), bacaBase64(vid.blob)]).then(function (hh) {
+              resolve({ base64: hh[0], mime: 'image/jpeg', url: URL.createObjectURL(blob), video: { base64: hh[1], mime: vid.mime, url: vid.url, durasi: durasi, ukuran: vid.blob.size } });
+            });
+          }).catch(reject);
         }, 'image/jpeg', 0.82);
       };
       v.src = url;
@@ -350,7 +608,10 @@
   /** Banner menerima gambar atau video; video dicek dulu durasi dan ukurannya. */
   function pilihMediaBanner(file) {
     const proses = jenisVideo(file) ? siapkanVideo(file, 1920) : kompresGambar(file, 1920);
-    return proses.catch(function (e) { toast(pesanDari(e), 'err'); return null; });
+    return proses.then(function (h) {
+      if (h && h.video && h.video.ukuran) toast('Video siap (' + (h.video.ukuran / 1048576).toFixed(1).replace('.', ',') + ' MB). Klik Simpan banner untuk menayangkan.', 'ok');
+      return h;
+    }, function (e) { toast(pesanDari(e), 'err'); return null; });
   }
 
   function unduhPdf(base64, nama) {
@@ -642,6 +903,8 @@
     const daftar = (S.data.banner || []).filter(function (b) { return b && (b.judul || b.idGambar); });
     byId('bannerTrack').innerHTML = daftar.map(function (b, i) { return htmlSlide(b, i, daftar.length); }).join('');
     BNR.idx = 0;
+    BNR.mulai = Date.now();
+    BNR.mulaiVideo = 0;
     const banyak = daftar.length > 1;
     $$('#banner .banner-nav').forEach(function (el) { el.hidden = !banyak; });
     byId('banner').hidden = daftar.length === 0;
@@ -732,12 +995,31 @@
       if (putar) {
         v.muted = true;
         if (v.preload !== 'auto') v.preload = 'auto';
-        if (v.paused) { const p = v.play(); if (p && p.catch) p.catch(function () {}); }
+        if (v.paused && !v.dataset.tolak) {
+          const p = v.play();
+          if (p && p.catch) p.catch(function (e) {
+            // Mode hemat baterai (mis. iPhone) menolak putar otomatis: coba lagi saat layar disentuh.
+            if (e && e.name === 'NotAllowedError') { v.dataset.tolak = '1'; tungguSentuhan(); }
+          });
+        }
       } else if (!v.paused) {
         v.pause();
         try { v.currentTime = 0; } catch (e) { /* abaikan */ }
       }
     });
+  }
+
+  let menungguSentuhan = false;
+  function tungguSentuhan() {
+    if (menungguSentuhan) return;
+    menungguSentuhan = true;
+    const coba = function () {
+      menungguSentuhan = false;
+      ['touchend', 'click', 'keydown'].forEach(function (n) { window.removeEventListener(n, coba, true); });
+      $$('#bannerTrack .slide-video').forEach(function (v) { delete v.dataset.tolak; });
+      aturVideoBanner();
+    };
+    ['touchend', 'click', 'keydown'].forEach(function (n) { window.addEventListener(n, coba, { capture: true, passive: true }); });
   }
 
   function keSlide(i) {
@@ -749,7 +1031,23 @@
       s.classList.toggle('aktif', a);
       if (a) s.removeAttribute('aria-hidden'); else s.setAttribute('aria-hidden', 'true');
     });
+    BNR.mulai = Date.now();
+    BNR.mulaiVideo = 0;
     aturVideoBanner();
+  }
+
+  /**
+   * Lama tayang slide: gambar 5 detik. Slide video menunggu videonya termuat (maks. 20 detik)
+   * lalu tayang minimal satu putaran penuh, supaya video tidak terlewat di HP yang lambat.
+   */
+  function slideBolehGanti() {
+    const lama = Date.now() - (BNR.mulai || 0);
+    if (lama < 5000) return false;
+    const s = $$('#bannerTrack .slide')[BNR.idx];
+    const v = s && s.querySelector('.slide-video');
+    if (!v || v.classList.contains('gagal') || v.dataset.tolak || GERAK_MINIM || hematData()) return true;
+    if (BNR.mulaiVideo) return Date.now() - BNR.mulaiVideo >= Math.max(4800, ((isFinite(v.duration) && v.duration) || VIDEO_MAKS_DETIK) * 1000 - 150);
+    return lama >= 20000;
   }
 
   function aturBanner(aktif) {
@@ -758,7 +1056,8 @@
     clearInterval(BNR.timer);
     BNR.timer = null;
     if (!aktif || BNR.jeda || BNR.hover || document.hidden || $$('#bannerTrack .slide').length < 2) return;
-    BNR.timer = setInterval(function () { keSlide(BNR.idx + 1); }, 5000);
+    BNR.mulai = Date.now();
+    BNR.timer = setInterval(function () { if (slideBolehGanti()) keSlide(BNR.idx + 1); }, 250);
   }
 
   function htmlVisi(p) {
@@ -2139,7 +2438,9 @@
         '<div class="slot-grid"><div><div class="slot-img" data-img-box>' + media + '<i class="bi bi-image pimg-ph" aria-hidden="true"></i></div>' +
         '<button type="button" class="btn btn-outline btn-sm btn-block mt-8" data-aksi="pilihFile" data-target="bnFile' + i + '"><i class="bi bi-upload" aria-hidden="true"></i> Ganti gambar/video</button>' +
         (adaVideo ? '<button type="button" class="btn btn-ghost btn-sm btn-block mt-8" data-aksi="bnrHapusVideo" data-slot="' + i + '"><i class="bi bi-trash3" aria-hidden="true"></i> Hapus video</button>' : '') +
-        '<p class="xs muted mt-8">Video MP4 tanpa suara, maks. ' + VIDEO_MAKS_DETIK + ' detik &amp; ' + VIDEO_MAKS_MB + ' MB.</p>' +
+        '<p class="xs muted mt-8">' + ((window.VideoEncoder || mimeRekamMp4())
+          ? 'Video maks. ' + VIDEO_MAKS_DETIK + ' detik. Otomatis dikecilkan ke 1080p tanpa suara agar ringan di HP.'
+          : 'Video MP4 tanpa suara, maks. ' + VIDEO_MAKS_DETIK + ' detik &amp; ' + VIDEO_MAKS_MB + ' MB.') + '</p>' +
         '<input type="file" id="bnFile' + i + '" class="bn-file" data-slot="' + i + '" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" hidden></div>' +
         '<div>' + fieldBnr(i, 'judul', 'Judul', s.judul, 80, true) + fieldBnr(i, 'subjudul', 'Subjudul', s.subjudul, 160, false) +
         fieldBnr(i, 'teksTombol', 'Teks tombol (kosong = tanpa tombol)', s.teksTombol, 30, false, 'Contoh: Lihat Produk') +
@@ -3063,7 +3364,11 @@
 
     document.addEventListener('playing', function (e) {
       const t = e.target;
-      if (t && t.classList && t.classList.contains('slide-video')) t.classList.add('siap');
+      if (t && t.classList && t.classList.contains('slide-video')) {
+        t.classList.add('siap');
+        const s = t.parentNode;
+        if (s && s.classList.contains('aktif') && s.parentNode && s.parentNode.id === 'bannerTrack' && !BNR.mulaiVideo) BNR.mulaiVideo = Date.now();
+      }
     }, true);
     document.addEventListener('error', function (e) {
       const t = e.target;
@@ -3275,9 +3580,40 @@
       '<button type="button" class="btn btn-primary btn-sm mt-8" data-aksi="ulangInit">Coba lagi</button></div></div>';
   }
 
+  /** Panel pemeriksaan video banner: buka situs dengan ?cekvideo (mis. dari HP). */
+  function panelCekVideo() {
+    const el = document.createElement('div');
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:rgba(28,25,23,.93);color:#FDF9F3;' +
+      'font:12px/1.55 var(--mono,monospace);padding:10px 12px;border-radius:10px;white-space:pre-line;pointer-events:none';
+    document.body.appendChild(el);
+    const t0 = Date.now();
+    setInterval(function () {
+      const v = document.querySelector('#bannerTrack .slide-video');
+      let st = 'tidak ada video di banner';
+      if (v) {
+        if (v.classList.contains('gagal') || v.error) st = 'GAGAL diputar (kode ' + (v.error ? v.error.code : '?') + ')';
+        else if (v.dataset.tolak) st = 'DITOLAK putar otomatis (mode hemat baterai?), sentuh layar';
+        else if (!v.getAttribute('src')) st = v.dataset.muat ? 'sedang mengunduh…' : 'belum diunduh';
+        else if (!v.paused) st = 'JALAN ✓';
+        else st = 'siap, menunggu slidenya tampil';
+      }
+      el.textContent = 'CEK VIDEO BANNER\n' +
+        'Kurangi animasi di HP: ' + (GERAK_MINIM ? 'YA (video dimatikan)' : 'tidak') + '\n' +
+        'Hemat data: ' + (hematData() ? 'YA (video dimatikan)' : 'tidak') + '\n' +
+        'Status: ' + st + '\n' +
+        (v && v.videoWidth ? 'Resolusi video: ' + v.videoWidth + '×' + v.videoHeight + '\n' : '') +
+        'Slide aktif: ' + (BNR.idx + 1) + ' · ' + Math.round((Date.now() - t0) / 1000) + ' detik';
+    }, 500);
+  }
+
   let pendengarTerpasang = false;
   function init() {
-    if (!pendengarTerpasang) { pasangPendengar(); pendengarTerpasang = true; }
+    if (!pendengarTerpasang) {
+      pasangPendengar();
+      pendengarTerpasang = true;
+      if (/[?&]cekvideo\b/.test(location.search)) panelCekVideo();
+    }
     // Kunjungan ulang: tampil instan dari salinan lokal, lalu diperbarui di latar.
     const simpanan = bacaDataPublik();
     if (simpanan) {
