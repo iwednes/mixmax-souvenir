@@ -55,10 +55,6 @@
   function gambar(id, w) {
     return idValid(id) ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(id) + '&sz=w' + (w || 600) : '';
   }
-  /** Video banner dari Drive (file dibagikan "siapa saja yang memiliki link"). */
-  function videoDrive(id) {
-    return idValid(id) ? 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(id) : '';
-  }
   function inisial(nama) {
     const p = String(nama || '').replace(/<[^>]*>/g, ' ').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
     if (!p.length) return '?';
@@ -93,7 +89,7 @@
    * - Aksi lain → POST {action, args}. Content-Type WAJIB text/plain: application/json
    *   memicu CORS preflight (OPTIONS) yang tidak didukung GAS.
    */
-  const AKSI_GET = { getDataPublik: [], getTestimoniPublik: ['offset'] };
+  const AKSI_GET = { getDataPublik: [], getTestimoniPublik: ['offset'], getVideoBanner: ['id'] };
   const RESPON_KOSONG = { success: false, message: 'Respons kosong dari server. Silakan coba lagi.', kode: 'KOSONG' };
 
   function alamatApi() {
@@ -623,7 +619,8 @@
 
   function htmlSlide(b, i, total, urlGanti, videoGanti) {
     const url = urlGanti || gambar(b.idGambar, 1920);
-    const vid = videoGanti !== undefined ? videoGanti : videoDrive(b.idVideo);
+    const vid = videoGanti !== undefined ? videoGanti : '';
+    const idVid = videoGanti === undefined && idValid(b.idVideo) ? b.idVideo : '';
     let tombol = '';
     if (b.teksTombol) {
       if (b.jenisTautan === 'URL' && /^https:\/\//.test(b.tautan || '')) {
@@ -634,8 +631,8 @@
     }
     return '<div class="slide' + (i === 0 ? ' aktif' : '') + '" role="group" aria-roledescription="slide" aria-label="' + (i + 1) + ' dari ' + total + '"' + (i === 0 ? '' : ' aria-hidden="true"') + '>' +
       (url ? '<div class="slide-bg" style="background-image:url(&quot;' + esc(url) + '&quot;)"></div>' : '') +
-      (vid ? '<video class="slide-video" src="' + esc(vid) + '"' + (url ? ' poster="' + esc(url) + '"' : '') + ' muted loop playsinline preload="none" disablepictureinpicture aria-hidden="true"></video>' : '') +
-      ((url || vid) ? '<div class="slide-overlay"></div>' : '') +
+      ((vid || idVid) ? '<video class="slide-video"' + (vid ? ' src="' + esc(vid) + '"' : ' data-vid="' + esc(idVid) + '"') + (url ? ' poster="' + esc(url) + '"' : '') + ' muted loop playsinline preload="none" disablepictureinpicture aria-hidden="true"></video>' : '') +
+      ((url || vid || idVid) ? '<div class="slide-overlay"></div>' : '') +
       '<div class="slide-card"><span class="lbl">Promo &amp; Event</span><h2 class="slide-judul">' + esc(b.judul || 'Judul banner') + '</h2>' +
       (b.subjudul ? '<p class="slide-sub">' + esc(b.subjudul) + '</p>' : '') +
       (tombol ? '<div class="slide-cta">' + tombol + '</div>' : '') + '</div></div>';
@@ -648,13 +645,90 @@
     const banyak = daftar.length > 1;
     $$('#banner .banner-nav').forEach(function (el) { el.hidden = !banyak; });
     byId('banner').hidden = daftar.length === 0;
+    rapikanCacheVideo(daftar.map(function (b) { return b.idVideo; }).filter(idValid));
     aturVideoBanner();
   }
 
-  // Video banner: hanya slide aktif yang diputar, dan hanya saat Beranda tampil.
+  // Video banner: Drive menolak <video> dari situs lain (HTTP 503), jadi isi video diambil
+  // lewat API (getVideoBanner, base64), disimpan di Cache Storage browser, lalu diputar dari blob.
+  const VIDEO_CACHE = 'mmx-video-banner-v1';
+  const VIDEO_URL = {};
+  function kunciCacheVideo(id) { return location.origin + '/__video-banner/' + encodeURIComponent(id); }
+  function base64KeBlob(b64, mime) {
+    const biner = atob(b64);
+    const n = biner.length;
+    const buf = new Uint8Array(n);
+    for (let i = 0; i < n; i++) buf[i] = biner.charCodeAt(i);
+    return new Blob([buf], { type: mime || 'video/mp4' });
+  }
+  function bukaCacheVideo() {
+    try { return ('caches' in window) ? caches.open(VIDEO_CACHE).catch(function () { return null; }) : Promise.resolve(null); } catch (e) { return Promise.resolve(null); }
+  }
+  function muatVideoBanner(id) {
+    if (!idValid(id)) return Promise.reject(new Error('ID video tidak valid'));
+    if (VIDEO_URL[id]) return VIDEO_URL[id];
+    VIDEO_URL[id] = bukaCacheVideo().then(function (c) {
+      return (c ? c.match(kunciCacheVideo(id)).catch(function () { return null; }) : Promise.resolve(null)).then(function (r) {
+        if (r) return r.blob();
+        return panggil('getVideoBanner', id).then(function (res) {
+          if (!res.success || !res.data || !res.data.base64) throw new Error(res.message || 'Video kosong');
+          const blob = base64KeBlob(res.data.base64, res.data.mime);
+          if (c) c.put(kunciCacheVideo(id), new Response(blob, { headers: { 'Content-Type': blob.type } })).catch(function () {});
+          return blob;
+        });
+      });
+    }).then(function (blob) {
+      if (!blob || !blob.size) throw new Error('Video kosong');
+      return URL.createObjectURL(blob);
+    });
+    VIDEO_URL[id].catch(function (e) {
+      delete VIDEO_URL[id];
+      console.warn('[Mixmax] Video banner belum bisa dimuat. Pastikan Kode.gs v1.3.1 sudah di-deploy (New version).', e && e.message);
+    });
+    return VIDEO_URL[id];
+  }
+  // Hapus video lama dari cache browser bila sudah tidak dipakai banner.
+  function rapikanCacheVideo(idDipakai) {
+    bukaCacheVideo().then(function (c) {
+      if (!c) return;
+      return c.keys().then(function (ks) {
+        ks.forEach(function (k) {
+          const id = decodeURIComponent(String(k.url).split('/__video-banner/')[1] || '');
+          if (id && idDipakai.indexOf(id) < 0) c.delete(k).catch(function () {});
+        });
+      });
+    }).catch(function () {});
+  }
+  function hematData() {
+    try { return !!(navigator.connection && navigator.connection.saveData); } catch (e) { return false; }
+  }
+  /** Pasang sumber video (bila belum) lalu jalankan callback setelah siap. */
+  function siapkanSumberVideo(v, lalu) {
+    if (v.getAttribute('src') || !v.dataset.vid || v.dataset.muat) { if (lalu) lalu(); return; }
+    v.dataset.muat = '1';
+    muatVideoBanner(v.dataset.vid).then(function (u) {
+      if (!v.isConnected) return;
+      v.src = u;
+      if (lalu) lalu();
+    }, function () {
+      delete v.dataset.muat;
+    });
+  }
   function aturVideoBanner() {
-    $$('#bannerTrack .slide-video').forEach(function (v) {
-      const putar = BNR.aktif && !GERAK_MINIM && !document.hidden && v.parentNode.classList.contains('aktif');
+    const vids = $$('#bannerTrack .slide-video');
+    if (!vids.length) return;
+    const bolehMuat = BNR.aktif && !GERAK_MINIM && !hematData();
+    if (bolehMuat) {
+      // Muat video slide aktif dulu, lalu slide berikutnya agar siap saat bergeser.
+      const slides = $$('#bannerTrack .slide');
+      [BNR.idx, BNR.idx + 1].forEach(function (k) {
+        const s = slides[(k + slides.length) % slides.length];
+        const v = s && s.querySelector('.slide-video');
+        if (v && !v.getAttribute('src') && !v.dataset.muat) siapkanSumberVideo(v, aturVideoBanner);
+      });
+    }
+    vids.forEach(function (v) {
+      const putar = BNR.aktif && !GERAK_MINIM && !document.hidden && v.parentNode.classList.contains('aktif') && !!v.getAttribute('src');
       if (putar) {
         v.muted = true;
         if (v.preload !== 'auto') v.preload = 'auto';
@@ -2081,7 +2155,13 @@
     const f = ADM.bnr.fotoBaru[i];
     byId('bnrPreview').innerHTML = '<div class="banner-track">' + htmlSlide(s, 0, 3, f ? f.url : '', f ? (f.video ? f.video.url : '') : undefined) + '</div>';
     const v = byId('bnrPreview').querySelector('video');
-    if (v) { v.muted = true; v.preload = 'auto'; const p = v.play(); if (p && p.catch) p.catch(function () {}); }
+    if (v) {
+      siapkanSumberVideo(v, function () {
+        if (!v.isConnected) return;
+        v.muted = true; v.preload = 'auto';
+        const p = v.play(); if (p && p.catch) p.catch(function () {});
+      });
+    }
     byId('bnrPrevKet').textContent = 'Slide ' + (i + 1) + ' dari 3';
   }
   async function simpanBanner() {
