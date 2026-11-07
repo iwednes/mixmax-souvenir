@@ -4,7 +4,7 @@
    - header muncul bertahap, tersembunyi saat digulir turun, kembali saat digulir naik
    - menu samping layar penuh: panel geser dari kanan, garis tergambar, label naik
    - tombol: isi menyapu miring, ikon menembus keluar-masuk, tertarik ke kursor
-   - Beranda: banner jadi hero layar penuh (zoom 1.24 → 1.1, garis & meta di bawah),
+   - Beranda: banner jadi hero layar penuh (zoom 1.24 → 1.1),
      Visi/Misi/Pilar jadi kolom bergaris, testimoni satu per satu, ajakan terbuka dari atas
    - Testimonial & Tentang Kami: kepala halaman dengan aksen besar dan judul per baris,
      foto terbuka dari bawah, angka berhitung naik, daftar kontak bergaris
@@ -355,14 +355,7 @@
     beranda.insertBefore(banner, wadah);
     if (!wadah.children.length) wadah.classList.add('gs-hero-wadah');
     banner.classList.add('gs-hero');
-    var bar = buat('div', 'gs-hero-bar');
-    bar.innerHTML = '<span class="gs-hero-garis" aria-hidden="true"></span><div class="gs-hero-meta">' +
-      '<div><span class="gs-hero-hitung" aria-hidden="true"></span><span class="gs-hero-jalur" aria-hidden="true"></span></div>' +
-      '<div><span class="gs-hero-slogan"></span></div></div>';
-    var kanan = bar.querySelector('.gs-hero-meta > :nth-child(2)');
-    [$('.banner-nav.prev', banner), $('.banner-nav.next', banner)].filter(ada).forEach(function (b) { kanan.appendChild(b); });
-    banner.appendChild(bar);
-    hero = { el: banner, track: document.getElementById('bannerTrack'), bar: bar, hitung: $('.gs-hero-hitung', bar), jalur: $('.gs-hero-jalur', bar), slogan: $('.gs-hero-slogan', bar) };
+    hero = { el: banner, track: document.getElementById('bannerTrack') };
     new MutationObserver(function (m) {
       var baru = m.some(function (x) { return x.type === 'childList' && x.target === hero.track; });
       var ganti = baru || m.some(function (x) { return x.type === 'attributes' && x.target.classList && x.target.classList.contains('slide'); });
@@ -376,10 +369,6 @@
     if (!hero.el) return;
     var slides = $$('.slide', hero.track);
     var i = slides.findIndex(function (s) { return s.classList.contains('aktif'); });
-    var n = slides.length;
-    hero.slogan.textContent = (($('#hdrSlogan') || {}).textContent || '').trim();
-    hero.hitung.innerHTML = n ? dua(Math.max(i, 0) + 1) + ' <span>/ ' + dua(n) + '</span>' : '';
-    hero.jalur.innerHTML = n > 1 ? slides.map(function (s, k) { return '<i class="' + (k < i ? 'lewat' : (k === i ? 'kini' : '')) + '"></i>'; }).join('') : '';
     aturHeroHeader();
     if (i >= 0 && i !== heroIdx && rute === 'beranda') {
       var sebelumnya = heroIdx;
@@ -571,12 +560,7 @@
         sembunyiCta(cta);
       },
       mulai: function () {
-        if (h) {
-          h.el.classList.remove('gs-siap'); void h.el.offsetWidth; h.el.classList.add('gs-siap');
-          simpan('beranda', g.timeline({ scrollTrigger: { trigger: h.el, start: 'top top', end: 'bottom top', scrub: true } })
-            .fromTo(h.track, { yPercent: 0 }, { yPercent: 6, ease: 'none' }, 0)
-            .fromTo(h.bar, { autoAlpha: 1 }, { autoAlpha: 0, ease: 'none' }, 0));
-        }
+        if (h) simpan('beranda', g.fromTo(h.track, { yPercent: 0 }, { yPercent: 6, ease: 'none', scrollTrigger: { trigger: h.el, start: 'top top', end: 'bottom top', scrub: true } }));
         heads.forEach(function (x) { pemicuSecHead(x, 'beranda'); });
         pemicuKolom(visiMisi, 'beranda');
         pemicuKolom(pilar, 'beranda');
