@@ -8,10 +8,11 @@
     (function () {
       try {
         var dariCover = /[?&]dari=cover/.test(location.search);
-        if (dariCover) sessionStorage.setItem('mmx_cover', '1');
+        var cekVideo = /[?&]cekvideo\b/.test(location.search); // pemeriksaan video banner: langsung ke Beranda
+        if (dariCover || cekVideo) sessionStorage.setItem('mmx_cover', '1');
         // alamat selalu bersih: tanpa index.html dan tanpa ?dari=cover
         if (dariCover || /\/index\.html$/.test(location.pathname)) history.replaceState(null, '', location.pathname.replace(/index\.html$/, ''));
-        if (sessionStorage.getItem('mmx_cover')) return;
+        if (cekVideo || sessionStorage.getItem('mmx_cover')) return;
       } catch (e) { return; }
       location.replace('cover.html');
     })();
