@@ -247,7 +247,8 @@
   function gulirKeGrid(langsung) {
     var top = grid.getBoundingClientRect().top;
     if (top > 0 && top < window.innerHeight * 0.5) return;
-    if (lenis && !langsung) { lenis.scrollTo(grid, { offset: GESER_GULIR, duration: 1.1 }); return; }
+    var L = lenisAktif();
+    if (L && !langsung) { L.scrollTo(grid, { offset: GESER_GULIR, duration: 1.1 }); return; }
     window.scrollTo({ top: window.scrollY + top + GESER_GULIR, behavior: 'auto' });
   }
 
@@ -343,8 +344,10 @@
   }
 
   /* ---------- Gulir halus Lenis, hanya selama halaman Produk tampil ---------- */
+  // Bila js/gerak-situs.js aktif, gulir halus sudah diatur di sana untuk semua halaman.
+  function lenisAktif() { return window.MMXSitus ? window.MMXSitus.lenis() : lenis; }
   function mulaiLenis() {
-    if (lenis || !LenisKelas) return;
+    if (window.MMXSitus || lenis || !LenisKelas) return;
     try { lenis = new LenisKelas({ autoRaf: false, anchors: false }); } catch (e) { lenis = null; return; }
     lenis.on('scroll', ST.update);
     rafLenis = function (t) { if (lenis) lenis.raf(t * 1000); };
@@ -359,7 +362,7 @@
     lenis = null;
   }
   // jendela modal (mis. login, konfirmasi) mengunci gulir: Lenis ikut berhenti
-  new MutationObserver(function () {
+  if (!window.MMXSitus) new MutationObserver(function () {
     if (!lenis) return;
     if (document.body.classList.contains('modal-terbuka')) lenis.stop(); else lenis.start();
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
