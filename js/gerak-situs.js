@@ -38,7 +38,6 @@
   function $$(s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); }
   function arr(x) { return Array.prototype.slice.call(x || []); }
   function ada(x) { return !!x; }
-  function dua(n) { return (n < 10 ? '0' : '') + n; }
   function buat(tag, kelas, html) { var e = document.createElement(tag); if (kelas) e.className = kelas; if (html !== undefined) e.innerHTML = html; return e; }
   function esc(s) { return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function teks(c, s) { var e = c.querySelector(s); return e ? e.textContent.replace(/\s+/g, ' ').trim() : ''; }
@@ -409,16 +408,9 @@
       a.setAttribute('aria-roledescription', 'carousel');
       a.setAttribute('aria-label', 'Testimoni pelanggan');
       a.innerHTML = '<div class="gs-testi-panggung"><figure class="gs-testi-slide" aria-live="polite"><span class="gs-garis" aria-hidden="true"></span>' +
-        '<blockquote class="gs-testi-kutip"></blockquote><figcaption class="gs-testi-orang"></figcaption></figure></div>' +
-        '<div class="gs-testi-kendali"><span class="gs-testi-hitung"></span><span class="gs-testi-jalur" aria-hidden="true"><span class="gs-testi-isi"></span></span>' +
-        '<div class="gs-testi-tombol"><button type="button" class="gs-kotak" data-gs-testi="-1" aria-label="Testimoni sebelumnya"><i class="bi bi-arrow-left" aria-hidden="true"></i></button>' +
-        '<button type="button" class="gs-kotak" data-gs-testi="1" aria-label="Testimoni berikutnya"><i class="bi bi-arrow-right" aria-hidden="true"></i></button></div></div>';
+        '<blockquote class="gs-testi-kutip"></blockquote><figcaption class="gs-testi-orang"></figcaption></figure></div>';
       src.parentNode.insertBefore(a, src);
       testi.akar = a;
-      a.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-gs-testi]');
-        if (b) { geserTesti(parseInt(b.getAttribute('data-gs-testi'), 10)); mulaiPutarTesti(); }
-      });
       a.addEventListener('mouseenter', function () { testi.diam = true; hentiPutarTesti(); });
       a.addEventListener('mouseleave', function () { testi.diam = false; mulaiPutarTesti(); });
       a.addEventListener('focusin', function () { testi.diam = true; hentiPutarTesti(); });
@@ -452,10 +444,6 @@
     orang.innerHTML = d.ava + '<span class="gs-testi-nama"><strong>' + esc(d.nama) + '</strong>' +
       (d.inst ? '<span>' + esc(d.inst) + '</span>' : '') + (d.tgl ? '<span class="ttgl">' + esc(d.tgl) + '</span>' : '') + '</span>' +
       (d.prod ? '<span class="tprod"><i class="bi bi-box-seam" aria-hidden="true"></i> ' + esc(d.prod) + '</span>' : '');
-    $('.gs-testi-hitung', testi.akar).innerHTML = dua(i + 1) + ' <span>/ ' + dua(testi.data.length) + '</span>';
-    $$('[data-gs-testi]', testi.akar).forEach(function (b) { b.hidden = testi.data.length < 2; });
-    var isiJalur = $('.gs-testi-isi', testi.akar), skala = (i + 1) / testi.data.length;
-    if (gerak) g.to(isiJalur, { scaleX: skala, duration: 0.8, ease: 'power3.out' }); else isiJalur.style.transform = 'scaleX(' + skala + ')';
   }
   function tampilTesti(i, arah, animasi) {
     if (!testi.data[i]) return;
@@ -492,14 +480,14 @@
     lepasSplit(kutip);
     g.set($('.gs-testi-slide > .gs-garis', testi.akar), { scaleX: 0 });
     g.set(kutip, { autoAlpha: 0 });
-    naikSembunyi([$('.gs-testi-orang', testi.akar), $('.gs-testi-kendali', testi.akar)], 16);
+    naikSembunyi([$('.gs-testi-orang', testi.akar)], 16);
   }
   function pemicuTesti(nama) {
     if (!testi.akar || testi.akar.hidden) return;
     var tl = tlGulir(testi.akar, nama);
     tl.to($('.gs-testi-slide > .gs-garis', testi.akar), { scaleX: 1, duration: 1.2, ease: 'power2.inOut', clearProps: 'transform' }, 0);
     baris(tl, $('.gs-testi-kutip', testi.akar), 0.15);
-    tl.to([$('.gs-testi-orang', testi.akar), $('.gs-testi-kendali', testi.akar)], { autoAlpha: 1, y: 0, duration: 0.9, stagger: 0.12, clearProps: BERSIH }, 0.5);
+    tl.to($('.gs-testi-orang', testi.akar), { autoAlpha: 1, y: 0, duration: 0.9, clearProps: BERSIH }, 0.5);
   }
 
   /* ---------- Beranda: ajakan dengan foto workshop ---------- */
