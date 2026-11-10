@@ -4,21 +4,76 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script>
-    // Kunjungan baru melihat cover 3D dulu, sekali per sesi browser. ?dari=cover = baru saja melewati cover.
+    // Kunjungan baru ke Beranda melihat cover 3D dulu, sekali per sesi browser. ?dari=cover = baru saja melewati cover.
+    // Mesin pencari, dan pengunjung yang datang lewat link halaman dalam (misalnya /produk dari Google), langsung ke isi.
     (function () {
+      var jalur = location.pathname;
+      var dalam = /\/(produk|keranjang|nota|testimonial|tentang|login)\/?$/.exec(jalur);
+      var kanon = document.createElement('link');   // alamat utama halaman ini untuk Google
+      kanon.rel = 'canonical';
+      kanon.href = 'https://www.mixmax-souvenir.com/' + (dalam && /^(produk|testimonial|tentang)$/.test(dalam[1]) ? dalam[1] : '');
+      document.head.appendChild(kanon);
       try {
         var dariCover = /[?&]dari=cover/.test(location.search);
         var cekVideo = /[?&]cekvideo\b/.test(location.search); // pemeriksaan video banner: langsung ke Beranda
         if (dariCover || cekVideo) sessionStorage.setItem('mmx_cover', '1');
         // alamat selalu bersih: tanpa index.html dan tanpa ?dari=cover
-        if (dariCover || /\/index\.html$/.test(location.pathname)) history.replaceState(null, '', location.pathname.replace(/index\.html$/, ''));
+        if (dariCover || /\/index\.html$/.test(jalur)) history.replaceState(null, '', jalur.replace(/index\.html$/, ''));
         if (cekVideo || sessionStorage.getItem('mmx_cover')) return;
+        if (/bot|crawler|spider|slurp|lighthouse|inspectiontool|googleother|facebookexternalhit|whatsapp|telegram/i.test(navigator.userAgent)) return;
+        if (dalam) { sessionStorage.setItem('mmx_cover', '1'); return; }
       } catch (e) { return; }
       location.replace('cover.html');
     })();
   </script>
-  <title>Mixmax Souvenir</title>
-  <meta name="description" content="Souvenir dan merchandise kustom untuk perusahaan, seminar, dan acara. Pilih produk, dapatkan nota pesanan langsung, DP 50% via WhatsApp.">
+  <title>Mixmax Souvenir - Pusat Souvenir &amp; Merchandise Custom Surabaya</title>
+  <meta name="description" content="Souvenir &amp; merchandise custom di Surabaya, Jawa Timur sejak 2010: handuk bordir, tumbler, dan selimut untuk perusahaan, instansi, dan acara. DP 50% via WhatsApp.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Mixmax Souvenir">
+  <meta property="og:locale" content="id_ID">
+  <meta property="og:url" content="https://www.mixmax-souvenir.com/">
+  <meta property="og:title" content="Mixmax Souvenir - Pusat Souvenir &amp; Merchandise Custom Surabaya">
+  <meta property="og:description" content="Souvenir &amp; merchandise custom di Surabaya, Jawa Timur sejak 2010: handuk bordir, tumbler, dan selimut untuk perusahaan, instansi, dan acara. DP 50% via WhatsApp.">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Store",
+        "@id": "https://www.mixmax-souvenir.com/#usaha",
+        "name": "Mixmax Souvenir",
+        "description": "Pusat souvenir dan merchandise custom di Surabaya, Jawa Timur: handuk bordir, tumbler, dan selimut untuk perusahaan, instansi, dan acara.",
+        "url": "https://www.mixmax-souvenir.com/",
+        "telephone": "+62 819-9099-0528",
+        "foundingDate": "2010",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Jl. Raya Panjang Jiwo Permai No.1A No. 7, Kompleks Pertokoan Ruko Delta Permai, Panjang Jiwo, Kec. Tenggilis Mejoyo",
+          "addressLocality": "Surabaya",
+          "addressRegion": "Jawa Timur",
+          "postalCode": "60299",
+          "addressCountry": "ID"
+        },
+        "openingHoursSpecification": [{
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "08:00",
+          "closes": "18:00"
+        }],
+        "areaServed": [{ "@type": "City", "name": "Surabaya" }, { "@type": "State", "name": "Jawa Timur" }],
+        "hasMap": "https://maps.app.goo.gl/1jZCXsWqfy36ogWs6"
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://www.mixmax-souvenir.com/#situs",
+        "name": "Mixmax Souvenir",
+        "url": "https://www.mixmax-souvenir.com/",
+        "inLanguage": "id-ID",
+        "publisher": { "@id": "https://www.mixmax-souvenir.com/#usaha" }
+      }
+    ]
+  }
+  </script>
   <meta name="theme-color" content="#FDF9F3">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231C1917'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='21' font-weight='600' fill='%23FDF9F3' text-anchor='middle'%3EM%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://script.google.com">
@@ -70,7 +125,7 @@
   <main id="main">
     <!-- ================= BERANDA ================= -->
     <section id="pg-beranda" class="page" aria-labelledby="judulBeranda">
-      <h1 id="judulBeranda" class="sr-only" tabindex="-1">Beranda</h1>
+      <h1 id="judulBeranda" class="sr-only" tabindex="-1">Mixmax Souvenir, Pusat Souvenir &amp; Merchandise Custom Surabaya</h1>
       <div class="wrap">
         <div class="banner" id="banner" role="region" aria-roledescription="carousel" aria-label="Promo dan event">
           <div class="banner-track" id="bannerTrack"></div>
@@ -405,7 +460,7 @@
     </section>
 
     <!-- ================= LOGIN ADMIN ================= -->
-    <section id="pg-login" class="page" hidden>
+    <section id="pg-login" class="page" hidden data-nosnippet>
       <div class="wrap login-wrap">
         <form class="card-hard login-card" id="formLogin" novalidate>
           <div class="login-head">
@@ -437,15 +492,16 @@
       <div>
         <span class="ftr-brand" id="ftrNama">Mixmax Souvenir</span>
         <p class="small" id="ftrSlogan"></p>
+        <p class="small mt-8">Workshop souvenir &amp; merchandise custom di Surabaya. Melayani pesanan perusahaan, instansi, dan acara di Surabaya dan seluruh Jawa Timur.</p>
         <a class="btn btn-wa btn-sm mt-16" data-wa="umum" target="_blank" rel="noopener"><i class="bi bi-whatsapp" aria-hidden="true"></i> Chat Admin WhatsApp</a>
       </div>
       <div>
         <h2 class="ftr-judul">Navigasi</h2>
         <ul class="ftr-list">
-          <li><button type="button" data-go="beranda">Beranda</button></li>
-          <li><button type="button" data-go="produk">Katalog Produk</button></li>
-          <li><button type="button" data-go="testimonial">Testimonial</button></li>
-          <li><button type="button" data-go="tentang">Tentang Kami</button></li>
+          <li><a href="./" data-go="beranda">Beranda</a></li>
+          <li><a href="produk" data-go="produk">Katalog Produk</a></li>
+          <li><a href="testimonial" data-go="testimonial">Testimonial</a></li>
+          <li><a href="tentang" data-go="tentang">Tentang Kami</a></li>
         </ul>
       </div>
       <div>
@@ -480,7 +536,7 @@
 <!-- =========================================================
      PANEL ADMIN
      ========================================================= -->
-<div id="vAdmin" class="adm" hidden>
+<div id="vAdmin" class="adm" hidden data-nosnippet>
   <aside class="adm-side" id="admSide" aria-label="Navigasi admin">
     <div class="adm-brand"><span class="logo-wadah" data-logo><span class="brand-logo" aria-hidden="true">M</span></span><div><strong id="admNama">Mixmax Souvenir</strong><small>Panel Admin</small></div></div>
     <nav class="adm-nav" aria-label="Menu admin">

@@ -8,6 +8,9 @@ yang berperan sebagai REST API (JSON) — kode backend-nya **tidak** disimpan di
 cover.html        ← cover 3D 25 detik sebelum masuk website (sekali per sesi browser)
 cerita.mp3        ← suara narator + musik untuk cover
 index.html        ← semua halaman publik + panel admin (SPA)
+vercel.json       ← alamat /produk, /testimonial, /tentang dibuka oleh index.html
+sitemap.xml       ← daftar halaman untuk Google
+robots.txt        ← izin baca untuk mesin pencari + letak sitemap
 css/style.css     ← tampilan "Haute Archive" (krem, espresso, bronze)
 js/config.js      ← GAS_URL: alamat Web App Apps Script (/exec)  ← satu-satunya yang diedit
 js/app.js         ← logika halaman, keranjang, form, panel admin

@@ -238,6 +238,8 @@ select.inp-sm { padding-right: 34px; }
 .ftr-list { list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 13px; line-height: 20px; color: var(--ink-400); }
 .ftr-list button { background: none; border: 0; padding: 2px 0; min-height: 28px; color: var(--ink-400); font: 400 13px/20px var(--sans); text-align: left; transition: color var(--t); }
 .ftr-list button:hover { color: var(--bg); }
+.ftr-list a { display: inline-block; padding: 2px 0; min-height: 28px; color: var(--ink-400); font: 400 13px/20px var(--sans); text-decoration: none; transition: color var(--t); }
+.ftr-list a:hover { color: var(--bg); }
 .ftr-kontak li { display: flex; gap: 10px; }
 .ftr-kontak i { color: var(--bronze-terang); }
 .ftr .btn-wa { background: var(--ink-800); color: var(--bg); border-color: var(--ink-700); box-shadow: none; }

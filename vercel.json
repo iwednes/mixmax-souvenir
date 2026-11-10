@@ -1,0 +1,6 @@
+{
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/:halaman(produk|testimonial|tentang|keranjang|nota|login)", "destination": "/index.html" }
+  ]
+}

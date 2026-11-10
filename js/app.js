@@ -772,7 +772,7 @@
       (p.no_wa_admin ? '<li><i class="bi bi-whatsapp" aria-hidden="true"></i><span>' + esc(formatWa(p.no_wa_admin)) + '</span></li>' : '') +
       (p.jam_operasional ? '<li><i class="bi bi-clock" aria-hidden="true"></i><span>' + esc(p.jam_operasional) + '</span></li>' : '');
     byId('ftrCopy').textContent = '© ' + new Date().getFullYear() + ' ' + nama + '. Hak cipta dilindungi.';
-    document.title = nama;
+    aturMeta(S.rute || ruteDariAlamat());   // judul tab & hasil Google
     pasangLogo();
     pasangLinkWa();
     perbaruiBadgeKeranjang();
@@ -812,12 +812,68 @@
   // ============================================================
   const RUTE_PUBLIK = ['beranda', 'produk', 'keranjang', 'nota', 'testimonial', 'tentang', 'login'];
 
+  // Tiap halaman punya alamat sendiri (/produk, /testimonial, ...) supaya bisa dibuka langsung,
+  // dibagikan, dan ditemukan Google. Tombol Back browser kembali ke halaman sebelumnya.
+  const JALUR_RUTE = { beranda: '', produk: 'produk', keranjang: 'keranjang', nota: 'nota', testimonial: 'testimonial', tentang: 'tentang', login: 'login' };
+  const POLA_JALUR = /\/(produk|keranjang|nota|testimonial|tentang|login)\/?$/;
+  const BASIS_JALUR = location.pathname.replace(POLA_JALUR, '/').replace(/[^/]*$/, '');
+  function ruteDariAlamat() {
+    const m = POLA_JALUR.exec(location.pathname);
+    return m ? m[1] : 'beranda';
+  }
+  function catatAlamat(rute, ganti) {
+    const tujuan = BASIS_JALUR + JALUR_RUTE[rute];
+    try {
+      if (ganti || location.pathname === tujuan) history.replaceState({ rute: rute }, '', tujuan + (ganti ? location.search + location.hash : ''));   // saat dibuka: ?cekvideo dll tetap
+      else history.pushState({ rute: rute }, '', tujuan);
+    } catch (e) { /* abaikan */ }
+  }
+
+  // Judul, deskripsi, dan alamat utama tiap halaman untuk tab browser dan hasil Google.
+  const DOMAIN_UTAMA = 'https://www.mixmax-souvenir.com/';
+  const DESKRIPSI_AWAL = (document.querySelector('meta[name="description"]') || {}).content || '';
+  function pasangMeta(nama, isi) {
+    let m = document.querySelector('meta[name="' + nama + '"]');
+    if (!isi) { if (m) m.remove(); return; }
+    if (!m) { m = document.createElement('meta'); m.name = nama; document.head.appendChild(m); }
+    m.content = isi;
+  }
+  function daftarKategori() {
+    const k = [];
+    ((S.data && S.data.produk) || []).forEach(function (p) {
+      const x = String(p.kategori || '').trim().toLowerCase();
+      if (x && k.indexOf(x) < 0) k.push(x);
+    });
+    return k.length ? k.slice(0, 4).join(', ') : 'handuk, tumbler, selimut';
+  }
+  function aturMeta(rute) {
+    const nama = namaUsaha();
+    const p = (S.data && S.data.pengaturan) || {};
+    const sejak = p.tahun_berdiri ? ' sejak ' + p.tahun_berdiri : '';
+    const isi = {
+      beranda: [nama + ' - Pusat Souvenir & Merchandise Custom Surabaya', DESKRIPSI_AWAL],
+      produk: ['Katalog Souvenir & Merchandise Custom Surabaya | ' + nama, 'Katalog souvenir custom ' + nama + ' Surabaya: ' + daftarKategori() + ', dan lainnya. Lihat harga per pcs, pesan online, DP 50% via WhatsApp.'],
+      testimonial: ['Testimoni Pelanggan Souvenir Custom Surabaya | ' + nama, 'Ulasan pelanggan ' + nama + ' dari perusahaan, instansi, dan panitia acara yang memesan souvenir custom di Surabaya.'],
+      tentang: ['Tentang ' + nama + ' - Workshop Souvenir Custom Surabaya' + sejak, 'Profil ' + nama + ', workshop souvenir & merchandise custom di Surabaya, Jawa Timur' + sejak + ': visi misi, alamat, jam buka, dan lokasi Google Maps.'],
+      keranjang: ['Keranjang Pesanan | ' + nama],
+      nota: ['Nota Pesanan | ' + nama],
+      login: ['Masuk Pengelola | ' + nama]
+    }[rute] || [nama + ' - Pusat Souvenir & Merchandise Custom Surabaya'];
+    document.title = isi[0];
+    if (isi[1]) pasangMeta('description', isi[1]);
+    const diindeks = rute === 'beranda' || rute === 'produk' || rute === 'testimonial' || rute === 'tentang';
+    pasangMeta('robots', diindeks ? '' : 'noindex, follow');
+    const kanon = document.querySelector('link[rel="canonical"]');
+    if (kanon) kanon.href = DOMAIN_UTAMA + (diindeks ? JALUR_RUTE[rute] : '');
+  }
+
   function tampilkanPublik() {
     byId('vAdmin').hidden = true;
     byId('vPublik').hidden = false;
   }
 
-  function buka(rute) {
+  function buka(rute, opsi) {
+    opsi = opsi || {};
     if (rute === 'admin') { bukaAdmin(); return; }
     if (RUTE_PUBLIK.indexOf(rute) < 0) rute = 'beranda';
     if (rute === 'nota' && !S.nota) rute = 'produk';
@@ -842,6 +898,8 @@
     byId('waFloat').hidden = rute === 'login';
     aturBanner(rute === 'beranda');
     simpanSesi('mmx_rute', rute);
+    if (!opsi.dariRiwayat) catatAlamat(rute, !S.sudahInit);
+    aturMeta(rute);
     window.scrollTo(0, 0);
     if (S.sudahInit) {
       const target = rute === 'produk' ? '#sub-katalog' : rute === 'keranjang' ? '#sub-keranjang' : rute === 'nota' ? '#sub-nota' : '#pg-' + rute;
@@ -1854,6 +1912,8 @@
     byId('admUser').textContent = ADM.username;
     byId('admPeringatan').hidden = !ADM.wajibGanti;
     simpanSesi('mmx_rute', 'admin');
+    document.title = 'Panel Admin | ' + namaUsaha();
+    pasangMeta('robots', 'noindex, follow');
     bukaMenuAdmin(menu);
     prefetchAdmin();
   }
@@ -3315,6 +3375,11 @@
   // 22. PEMASANGAN EVENT
   // ============================================================
   function pasangPendengar() {
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    window.addEventListener('popstate', function (e) {   // tombol Back / Forward browser
+      if (!S.sudahInit) return;
+      buka((e.state && e.state.rute) || ruteDariAlamat(), { dariRiwayat: true });
+    });
     document.addEventListener('click', function (e) {
       const link = e.target.closest('a[href]');
       if (link && !link.hasAttribute('data-go') && !link.hasAttribute('data-aksi')) return;
@@ -3564,12 +3629,11 @@
       } catch (e) { S.nota = null; }
     }
     hitungIsiTesti();
-    const rute = bacaSesi('mmx_rute') || 'beranda';
-    if (rute === 'admin' && bacaSesi('mmx_token')) {
+    if (bacaSesi('mmx_rute') === 'admin' && bacaSesi('mmx_token')) {
       buka('beranda');
       bukaAdmin();
     } else {
-      buka(rute === 'admin' ? 'beranda' : rute);
+      buka(ruteDariAlamat());   // halaman ditentukan alamatnya, mis. /produk
     }
     S.sudahInit = true;
     tampilPemuat(false);
