@@ -747,6 +747,13 @@
   function pesanNota(n) {
     return 'Halo ' + namaUsaha() + ', saya sudah membuat pesanan ' + n.id + ' atas nama ' + n.nama + '. Total ' + rupiah(n.total) + ', DP 50% ' + rupiah(n.dp) + '. Mohon info pembayaran DP dan langkah selanjutnya.';
   }
+  // Link ulasan Google Maps (dari Google Business Profile → Dapatkan lebih banyak ulasan).
+  const LINK_ULASAN_GOOGLE = 'https://g.page/r/Cbhr3D9HevtrEBM/review';
+  function waMintaUlasan(x) {
+    return waLink('Halo ' + x.nama + ', terima kasih sudah memesan souvenir di ' + namaUsaha() + ' 🙏 Semoga souvenirnya berkenan untuk acaranya.\n\n' +
+      'Boleh minta bantuan memberi ulasan singkat di Google? Cukup klik link ini:\n' + LINK_ULASAN_GOOGLE + '\n\n' +
+      'Ulasan Anda sangat membantu kami melayani lebih baik. Terima kasih banyak!', x.noWa);
+  }
   function waCustomer(x) {
     return waLink('Halo ' + x.nama + ', kami dari ' + namaUsaha() + ' ingin menindaklanjuti pesanan ' + x.id + ' (total ' + rupiah(x.total) + ', DP 50% ' + rupiah(x.dp) + ').', x.noWa);
   }
@@ -2186,12 +2193,14 @@
   function htmlDetailPesanan(d) {
     const n = d.nota;
     const wa = waCustomer({ id: n.id, nama: n.nama, total: n.total, dp: n.dp, noWa: n.noWa });
+    const ulas = d.status !== 'Batal' ? waMintaUlasan({ nama: n.nama, noWa: n.noWa }) : '';
     return '<div class="detail-atas">' +
       '<div class="detail-status"><label for="dStatus">Status DP</label><select id="dStatus" class="inp inp-sm">' +
       STATUS_PESANAN.map(function (s) { return '<option value="' + esc(s) + '"' + (s === d.status ? ' selected' : '') + '>' + esc(s) + '</option>'; }).join('') +
       '</select><button type="button" class="btn btn-primary btn-sm" id="btnStatus" data-aksi="simpanStatus" data-id="' + esc(n.id) + '">Simpan status</button>' +
       '<span class="xs muted">Diubah: ' + esc(d.statusDiubah || '—') + '</span></div>' +
       '<div class="detail-aksi">' + (wa ? '<a class="btn btn-wa btn-sm" href="' + esc(wa) + '" target="_blank" rel="noopener"><i class="bi bi-whatsapp" aria-hidden="true"></i> Chat WA customer</a>' : '') +
+      (ulas ? '<a class="btn btn-outline btn-sm" href="' + esc(ulas) + '" target="_blank" rel="noopener" title="Kirim link ulasan Google lewat WhatsApp"><i class="bi bi-star" aria-hidden="true"></i> Minta ulasan Google</a>' : '') +
       '<button type="button" class="btn btn-outline btn-sm" id="btnUnduhAdm" data-aksi="unduhNotaAdm" data-id="' + esc(n.id) + '"><i class="bi bi-download" aria-hidden="true"></i> <span>Unduh PDF</span></button>' +
       '<button type="button" class="btn btn-outline btn-sm" data-aksi="cetakNotaAdm"><i class="bi bi-printer" aria-hidden="true"></i> Cetak</button></div></div>' +
       (d.emailMacet ? '<div class="alert alert-err"><i class="bi bi-envelope-exclamation" aria-hidden="true"></i><div><p><strong>Email nota ' + (d.statusEmail === 'Gagal' ? 'gagal terkirim' : 'belum terkirim') + '.</strong> ' + esc(d.infoEmail) + '</p>' +
