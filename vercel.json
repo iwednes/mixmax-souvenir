@@ -1,6 +1,7 @@
 {
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/:halaman(produk|testimonial|tentang|keranjang|nota|login)", "destination": "/index.html" }
+    { "source": "/:halaman(produk|testimonial|tentang|keranjang|nota|login)", "destination": "/index.html" },
+    { "source": "/:khusus(souvenir-murah-surabaya|souvenir-perusahaan-surabaya|souvenir-seminar-surabaya|souvenir-serah-terima-jabatan|souvenir-handuk-bordir-surabaya)", "destination": "/halaman/:khusus.html" }
   ]
 }

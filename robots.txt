@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /halaman/
 
 Sitemap: https://www.mixmax-souvenir.com/sitemap.xml
