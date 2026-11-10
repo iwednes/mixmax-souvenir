@@ -791,7 +791,7 @@ body.ada-bar .wa-float { bottom: 100px; }
 .lp-lain { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; list-style: none; }
 .lp-lain a { display: inline-block; padding: 8px 14px; background: var(--card); border: 1px solid var(--line-kuat); border-radius: var(--pill); font-size: 13px; color: var(--ink-800); text-decoration: none; transition: border-color var(--t); }
 .lp-lain a:hover { border-color: var(--ink-400); }
-.ftr-layanan { padding-top: 16px; padding-bottom: 36px; }   /* jarak kiri-kanan mengikuti .wrap, sejajar kolom footer lain */
+.ftr-layanan { display: none; padding-top: 16px; padding-bottom: 36px; }   /* disembunyikan atas permintaan pemilik; hapus "display: none;" untuk menampilkan lagi */
 .ftr-layanan-list { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 4px; list-style: none; }
 .ftr-layanan-list a { font-size: 13px; color: var(--ink-400); text-decoration: none; transition: color var(--t); }
 .ftr-layanan-list a:hover { color: var(--bg); }
